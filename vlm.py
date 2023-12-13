@@ -1,27 +1,16 @@
-import re
-import parseline as pl
+#! /home/galan/workspace/vlm/venv/bin/python
+# -*- coding: utf-8 *-*
 
-data = []
-with open('vlm.txt', 'r') as file_object:
-    line = file_object.readline()
+import argparse
+import time
 
-    while line:
-        if line[0] in ['0', '1']:                # suppression du caractère ASA
-            line = ' ' + line[1:]
+i = 0
+start = time.time() # enregistre le temps au début
 
-        if line.strip():                         # la ligne lue n'est pas vide
-            key, match = pl._parse_line(line)
+with open('vlm.txt', 'r') as file:
+    for line in file:
+        i+=1
 
-            if key == 'libname':
-                library = match.group('libname').split()[-1]
-                print(library)
-
-            if key == 'module':
-                module = match.group('module').split()[-1]
-                print(module)
-
-#            if key == 'linked':
-                #linked_date = match.group('linked')
-#                print(match.group('linked'))
-
-        line = file_object.readline()
+end = time.time() # enregistre le temps de fin
+print(f"Temps d'exécution est {end - start}")
+print(f"{i} enregistrements lus")
