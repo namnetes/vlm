@@ -69,28 +69,29 @@ class LoadModule:
         """
         Liste de dictionnaires contenant :
         - ['name'] le nom de la CSECT
+        - ['address'] Address/Offset de la SCECT
         - ['size'] la taille du module de la CSECT
         - ['compiler'] le compilateur utilisé pour générer le module associé à la CSECT
         """
-        self.compiler = ''
-        """ le nom du compilateur ayant généré le LOAD MODULE """
-
     def __str__(self):
         """
         Affiche tous les attributs de la classe sur la sortie standard, stdout.
         Chaque attribut est séparé du précédent par un point-virgule.
         """
+
         output = ''
         for item in self.all_csect:
-            output += (f"{self.loadlib};{self.module};"
-                       f"{self.linked_date};"
-                       f"{self.linked_time};"
-                       f"{self.size};"
-                       f"{self.amode};"
-                       f"{self.rmode};"
-                       f"{item['name']};"
-                       f"{item['size']};"
-                       f"{item['compiler']}")
+            output+=(f"{self.module};"
+                     f"{self.loadlib};"
+                     f"{self.linked_date};"
+                     f"{self.linked_time};"
+                     f"{self.size};"
+                     f"{self.amode};"
+                     f"{self.rmode};"
+                     f"{item['name']};"
+                     f"{item['address']};"
+                     f"{item['size']};"
+                     f"{item['compiler']}")
 
         return output
 
@@ -101,17 +102,16 @@ class LoadModule:
         self.__init__()
 
 
-with open('vlm22.txt', 'r', encoding='utf-8', errors='ignore') as fichier:
+with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
 
     count_module = 0       # nombre de LOAD Module détectés
     lm = LoadModule()      # instanciation d'un nouvel objet LoadModule
-    csect = {}             # nom, taille et compilateur de la csect détectée
     csect_table_start = '' # en-tête du tableau des csect est détecté
-    csect_table_end = ''   # en-tête du tableau des csect est détecté
+    csect = {}             # dictionnaire des informations de la csect courante
 
-    for i, ligne in enumerate(fichier):
-        # ignorer les 12 premières lignes du fichier des VLM
-        if i < 2:
+    for i, ligne in enumerate(file):
+        # ignorer les 13 premières lignes du fichier des VLM
+        if i < 13:
             continue
 
         # supprimer le caractère de contrôle ASA.
@@ -123,12 +123,15 @@ with open('vlm22.txt', 'r', encoding='utf-8', errors='ignore') as fichier:
         # pour représenter des actions spécifiques telles que le retour
         # chariot (CR), le saut de ligne (LF), l'effacement de l'écran (ECS),
         # l'effacement du champ (EBC), etc.
-        if ligne[0] == '1' or ligne[0] == '0':
-            ligne = ' ' + ligne[1:]
+        if ligne.startswith(('0', '1')):
+            ligne=ligne[1:]
+            continue
 
-        # remplacer tous les tirets par un espace et supprimer tous
-        # les espaces de début et de fin de la ligne
-        ligne = ligne.replace("-", "").strip()
+        # Pour toutes les lignes qui ne débutent pas par '-PRIVATE' :
+        #  - remplacer tous les tirets par un espace 
+        #  - supprimer tous les espaces de début et de fin de la ligne
+        if not ligne.startswith('-PRIVATE'):
+            ligne = ligne.replace("-", "").strip()
 
         # ignorer les lignes vides
         if not ligne:
@@ -139,17 +142,14 @@ with open('vlm22.txt', 'r', encoding='utf-8', errors='ignore') as fichier:
             continue
 
         # ignorer les lignes qui débutent par: '1IBM File Manager for z/OS'
-        if ligne.startswith('1IBM File Manager for z/OS'):
+        if ligne.startswith('IBM File Manager for z/OS'):
             continue
 
         # rupture sur LOAD MODULE 
         if ligne.startswith('Load Module Information'):
-            if count_module > 0:
-               print(lm)             # afficher le contenu du LOAD MODULE
-            count_module += 1         # +1 LOAD MODULE traité
-            csect_table_start = False # réinitialisation car nouveau LOAD MODULE 
-            csect_table_end = False   # réinitialisation car nouveau LOAD MODULE 
-            lm.reset()                # réinitialisation car nouveau LAOD MODULE
+            # if count_module > 0:
+            #    print(lm)             # afficher le contenu du LOAD MODULE
+            # count_module += 1         # +1 LOAD MODULE traité
             continue
 
         # récupérer le nom de la LOADLIB parent où est stocké le LOAD MODULE
@@ -159,8 +159,8 @@ with open('vlm22.txt', 'r', encoding='utf-8', errors='ignore') as fichier:
 
         # récupérer le nom du LOAD MODULE
         if ligne.startswith('Load Module'):
-            mod = ligne.split()[2]
             lm.module = ligne.split()[2]
+            module = lm.module
             continue
 
         # récupérer la date et heure de LINKEDIT du LOAD MODULE
@@ -178,45 +178,41 @@ with open('vlm22.txt', 'r', encoding='utf-8', errors='ignore') as fichier:
         if ligne.startswith('EPA '):
             lm.size = ligne.split()[3]
             lm.amode = ligne.split()[-3]
+            lm.amode = ligne.split()[-3]
             lm.rmode = ligne.split()[-1]
+            continue
+
+        # ignorer les lignes qui contiennent uniquement :'Atributes'
+        if ligne == 'Attributes':
             continue
 
         # ignorer les lignes qui débutent par: 'Name      Type'
         if ligne.startswith('Name      Type'):
-            csect_table_start = True
-            csect.clear()
+            if not csect_table_start:
+                csect_table_start = True
+                csect.clear()
             continue
 
         # ignorer les lignes qui débutent par :'FMNBA215'
         if ligne.startswith('FMNBA215'):
-            csect_table_end = True
+            print(lm)
+            lm.reset()
+            csect.clear()
             continue
 
-        # traitement des csect
-        if (csect_table_start and not csect_table_end and len(ligne.split()) > 6):
-            # récupérer le nom du compilateur ayant généré le LOAD MODULE
-            mod = ligne.split()[0]
-            if ligne.split()[0] == lm.module:
-                csect['name'] = ligne.split()[0]
-                csect['size'] = ligne.split()[3]
-                csect['compiler'] = ligne[56:84]
-                lm.all_csect.append(csect)
-                continue
+        # # ignorer les CSECT de module compilées en C++ ou compilées en 'PL/X'
+        if (ligne[56:84].startswith('C/C++') or ligne[56:84].startswith('PL/X')):
+            continue
 
-            # ignorer les CSECT de module compilé en C++ ou compilé en 'PL/X'
-            if (ligne[56:84].startswith('C/C++') or ligne[56:84].startswith('PL/X')):
-                continue
+        # # ignorer les CSCET contenant les caractères '£' ou 'à' 
+        if ('£' in ligne.split()[0] or 'à' in ligne.split()[0]):
+            continue
 
-            # ignorer les CSCET débutant contenant les caractères '£' ou 'à' 
-            if ('£' in ligne.split()[0] or 'à' in ligne.split()[0]
-                and ligne.split()[1]):
-                continue
-
-            # récupérer le nom du compilateur ayant généré le LOAD MODULE
-            # if ligne.split()[1] == 'SD': 
-            #     csect.clear()
-            #     csect['name'] = ligne.split()[0]
-            #     csect['size'] = ligne.split()[3]
-            #     csect['compiler'] = ligne[56:84]
-            #     lm.all_csect.append(csect)
-            #     continue
+        # # traitement des csect
+        if csect_table_start:
+            csect['name'] = ligne.split()[0]
+            csect['address'] = ligne.split()[2]
+            csect['size'] = ligne.split()[3]
+            csect['compiler'] = ligne[56:84]
+            lm.all_csect.append(csect)
+            csect.clear()
