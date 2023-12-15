@@ -91,7 +91,7 @@ class LoadModule:
                      f"{item['name']};"
                      f"{item['address']};"
                      f"{item['size']};"
-                     f"{item['compiler']}")
+                     f"{item['compiler']}\n")
 
         return output
 
@@ -104,14 +104,16 @@ class LoadModule:
 
 with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
 
-    count_module = 0       # nombre de LOAD Module détectés
     lm = LoadModule()      # instanciation d'un nouvel objet LoadModule
     csect_table_start = '' # en-tête du tableau des csect est détecté
-    csect = {}             # dictionnaire des informations de la csect courante
 
     for i, ligne in enumerate(file):
         # ignorer les 13 premières lignes du fichier des VLM
         if i < 13:
+            continue
+
+        # ignorer les lignes vides
+        if not ligne:
             continue
 
         # supprimer le caractère de contrôle ASA.
@@ -133,10 +135,6 @@ with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
         if not ligne.startswith('-PRIVATE'):
             ligne = ligne.replace("-", "").strip()
 
-        # ignorer les lignes vides
-        if not ligne:
-            continue
-
         # ignorer les lignes de commandes FILE MANAGER
         if ligne.startswith('$$FILEM'):
             continue
@@ -147,9 +145,6 @@ with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
 
         # rupture sur LOAD MODULE 
         if ligne.startswith('Load Module Information'):
-            # if count_module > 0:
-            #    print(lm)             # afficher le contenu du LOAD MODULE
-            # count_module += 1         # +1 LOAD MODULE traité
             continue
 
         # récupérer le nom de la LOADLIB parent où est stocké le LOAD MODULE
@@ -183,25 +178,23 @@ with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
             continue
 
         # ignorer les lignes qui contiennent uniquement :'Atributes'
-        if ligne == 'Attributes':
+        if ligne.startswith('Attributes'):
             continue
 
         # ignorer les lignes qui débutent par: 'Name      Type'
         if ligne.startswith('Name      Type'):
             if not csect_table_start:
                 csect_table_start = True
-                csect.clear()
             continue
 
         # ignorer les lignes qui débutent par :'FMNBA215'
         if ligne.startswith('FMNBA215'):
             print(lm)
             lm.reset()
-            csect.clear()
             continue
 
-        # # ignorer les CSECT de module compilées en C++ ou compilées en 'PL/X'
-        if (ligne[56:84].startswith('C/C++') or ligne[56:84].startswith('PL/X')):
+        # ignorer les CSECT de module compilées en C++
+        if ligne[56:84].startswith('C/C++'):
             continue
 
         # # ignorer les CSCET contenant les caractères '£' ou 'à' 
@@ -210,9 +203,9 @@ with open('vlm0.txt', 'r', encoding='utf-8', errors='ignore') as file:
 
         # # traitement des csect
         if csect_table_start:
+            csect = {}
             csect['name'] = ligne.split()[0]
             csect['address'] = ligne.split()[2]
             csect['size'] = ligne.split()[3]
             csect['compiler'] = ligne[56:84]
             lm.all_csect.append(csect)
-            csect.clear()
