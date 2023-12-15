@@ -1,3 +1,21 @@
+Ci-dessous l'intégralité de mon code.
+
+Quand je passe dans cette portion
+
+        # # traitement des csect
+        if csect_table_start:
+            csect['name'] = ligne.split()[0]
+            csect['address'] = ligne.split()[2]
+            csect['size'] = ligne.split()[3]
+            csect['compiler'] = ligne[56:84]
+            lm.all_csect.append(csect)
+            csect.clear()
+
+ma liste all_csect s'incrément bien mais le dictionanire ajuté csect écrase tous les précédents. Comment corriger ?
+
+-----------------------------------
+
+
 #! /home/galan/workspace/vlm/venv/bin/python
 # -*- coding: utf-8 *-*
 
