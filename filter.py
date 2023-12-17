@@ -1,4 +1,4 @@
-#!/home/galan/workspace/vlm/.venv/bin/python
+#!/home/galan/workspace/py/vlm/.venv/bin/python
 # -*- coding: utf-8 -*-
 
 import argparse
