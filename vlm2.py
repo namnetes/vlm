@@ -22,20 +22,8 @@ with open('./data/vlm.txt', 'r') as fichier:
         # Ignorer les lignes vides et les lignes composées uniquement d'espaces
         if not ligne.strip():
             continue
-        # Ignorer les lignes contenant '$$FILEM'
-        elif '$$FILEM' in ligne:
-            continue
-        # Ignorer les lignes contenant 'IBM File Manager for z/OS'
-        elif 'IBM File Manager for z/OS' in ligne:
-            continue
-        # Ignorer les lignes contenant 'Attributes'
-        elif 'Attributes'  in ligne:
-            continue
-        # Ignorer les lignes contenant 'Name Type Address Size'
-        elif 'Name      Type Address Size' in ligne:
-            continue
-        # Ignorer les lignes contenant '--------- ----'
-        elif '--------- ----' in ligne:
+        # Ignorer les lignes contenant certains motifs
+        elif re.search(r'\$\$FILEM|IBM File Manager for z/OS|Attributes|Name      Type Address Size|--------- ----', ligne):
             continue
 
         # Remplacer '0 ' ou '1 ' par un espace en début de ligne
@@ -53,7 +41,7 @@ with open('./data/vlm.txt', 'r') as fichier:
                 numero_fmnba215 = 0
               
             # Ajouter la ligne au groupe en cours avec le nombre associé
-            groupe_courant['FMNBA215'] = {numero_fmnba215}
+            groupe_courant['Load Module Information'].insert(0, numero_fmnba215)
             
             # Ajouter le groupe à la liste
             groupes.append(groupe_courant)
