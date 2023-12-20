@@ -3,9 +3,10 @@
 
 import re
 import sys
+import argparse
 from tqdm import tqdm
 
-def traiter_lignes(fichier):
+def traiter_lignes(fichier, args):
     """
     TODO: Ajoutez une description de ce que fait cette fonction.
     """
@@ -19,7 +20,7 @@ def traiter_lignes(fichier):
     fichier.seek(0)  # Revenir au début du fichier
 
     # Utiliser tqdm pour créer une barre de progression
-    for ligne in tqdm(fichier, total=total_lignes, desc="Traitement des lignes"):
+    for ligne in tqdm(fichier, total=total_lignes, desc="Traitement des lignes", disable=args.quiet):
         # Ignorer les lignes vides et les lignes composées uniquement d'espaces
         if not ligne.strip():
             continue
@@ -69,18 +70,21 @@ def main():
     """
     TODO: Ajoutez une description de ce que fait cette fonction.
     """
-    # Vérifier si le nombre d'arguments est correct
-    if len(sys.argv) != 2:
-        print("Usage: python script.py chemin/nom_fichier")
-        sys.exit(1)
+    # Mise en place de l'analyseur d'arguments en ligne de commande
+    parser = argparse.ArgumentParser(description="TODO: Ajoutez une description du script.")
+    parser.add_argument('-f', '--input_file', default='./vlm.txt', help="Chemin vers le fichier à traiter.")
+    parser.add_argument('-q', '--quiet', action='store_true', help="Désactiver l'affichage de la barre de progression.")
 
-    chemin_fichier = sys.argv[1]
+    # Analyser les arguments de la ligne de commande
+    args = parser.parse_args()
+
+    chemin_fichier = args.input_file
 
     try:
         # Ouvrir le fichier en mode lecture
         with open(chemin_fichier, 'r') as fichier:
-            # Appeler la fonction pour traiter les lignes
-            groupes = traiter_lignes(fichier)
+            # Appeler la fonction pour traiter les lignes et passer les arguments
+            groupes = traiter_lignes(fichier, args)
 
         # Imprimer les résultats finaux pour déboguer
         print(f"Nombre total de groupes : {len(groupes)}")
