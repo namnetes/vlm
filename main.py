@@ -4,6 +4,7 @@ import os
 import sys
 
 def main():
+    
     print(f'Current directory: {os.getcwd()}')
 
     try:
