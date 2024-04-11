@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Path of the directory to compress
+source="./data"
+target="./test_suites"
+
+# Name of the archive
+archive_name="test_suites.tar.bz2"
+archive_path="/tmp/$archive_name"
+
+# Check if the target directory exists, otherwise create it
+mkdir -p $target
+
+# Compress the directory with bzip2
+tar -cjf "$archive_path" "$source"
+
+if [ ! -f "$target/$archive_name" ] || ! cmp -s "$target/$archive_name" "$archive_path" >/dev/null 2>&1; then
+    # Copy the compressed archive to the target directory
+    cp "$archive_path" "$target/$archive_name"
+    echo "The archive $archive_name has been copied to $target."
+
+    # Check if the file has changed
+    if git diff --quiet -- "$target/$archive_name"; then
+        echo "The file $target/$archive_name has changed."
+        git add "$target/$archive_name"
+        echo "The file $target/$archive_name has been added to Git."
+    else
+        echo "The file $target/$archive_name has not changed."
+    fi
+else
+    echo "The archive $archive_name already exists in $target and is identical."
+fi
+
+echo "The directory $source has been compressed into $archive_path."
