@@ -6,15 +6,15 @@ class FileHandler:
         try:
             return open(filename, 'r', encoding='us-ascii')
         except FileNotFoundError:
-            raise FileNotFoundError("The specified file was not found.")
+            raise FileNotFoundError(f'The specified file, {filename}, was not found.')
         except PermissionError:
-            raise PermissionError("Access denied to the file due to permission issues.")
+            raise PermissionError(f'Access denied to the file, {filename}, due to permission issues.')
         except IsADirectoryError:
-            raise IsADirectoryError("The specified path is a directory, not a file.")
+            raise IsADirectoryError(f'The specified path, {filename}, is a directory, not a file.')
         except IOError:
-            raise IOError("Input/output error occurred while opening the file.")
+            raise IOError(f'Input/output error occurred while opening the file, {filename}.')
         except UnicodeDecodeError:
-            raise UnicodeDecodeError("Unicode decoding error occurred while reading the file.")
+            raise UnicodeDecodeError(f'Unicode decoding error occurred while reading the file, {filename}.')
 
     @staticmethod
     def close_file(file):
