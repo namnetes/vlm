@@ -20,7 +20,7 @@ def write_loadlibs_to_csv(loadlibs_collection: Loadlibs, outfile):
     csv_writer.writerow(
         [
             "Loadlib Name",
-            "Module Line Counter",
+            "Line Counter",
             "Module Name",
             "Linked Date",
             "Linked Time",
