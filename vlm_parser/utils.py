@@ -1,3 +1,6 @@
+# Importations de bibliothèques standard
+import re
+
 # Importations de modules locaux
 from structures import Loadlib, Module, ModuleInfo, ModuleCsect
 
@@ -17,6 +20,9 @@ def should_ignore_line(line):
         return True
 
     if line.startswith("$$FILEM") and not line.startswith("$$FILEM VLM DSNIN"):
+        return True
+
+    if line.startswith("Attributes"):
         return True
 
     return False
@@ -65,70 +71,33 @@ def get_new_module(line_counter) -> Module:
     """
     current_module = Module()
     current_module.info = ModuleInfo()
-    current_module.CSECT = ModuleCsect()
+    current_module.CSECT = None
     current_module.line_counter = line_counter
     return current_module
 
 
-def is_loadlib_not_processing(
-    error_handler, current_loadlib: Loadlib, line_counter: int
-) -> bool:
+def is_CSECT_name(line):
 
-    if current_loadlib is None:
-        error_handler.log_error("End of loadlib section detected.")
-        error_handler.log_error(
-            f"Line number read from the input file is {line_counter}."
-        )
-        error_handler.log_error(f"No loadlib is currently being processed.")
-        return True  # True pour indiquer qu'une erreur a été détectée
-    return False  # Aucun problème détecté
+    # Séparer la chaîne en mots
+    mots = line.split()
 
+    # Vérifier qu'il y a au moins quatre mots
+    if len(mots) < 4:
+        return None
 
-def is_module_not_processing(
-    error_handler, current_module: Module, line_counter: int
-) -> bool:
+    premier_mot = mots[0]
+    second_mot = mots[1]
+    troisieme_mot = mots[2]
+    quatrieme_mot = mots[3]
 
-    if current_module is None:
-        error_handler.log_error("End of module section detected.")
-        error_handler.log_error(
-            f"Line number read from the input file is {line_counter}."
-        )
-        error_handler.log_error(f"No module is currently being processed.")
-        return True  # True pour indiquer qu'une erreur a été détectée
-    return False  # Aucun problème détecté
+    # Vérifier si le second mot est exactement 'FD'
+    if second_mot != "SD":
+        return None
 
+    # Vérifier que les 3e et 4e mots sont des chaînes hexadécimales de 7 caractères
+    if re.fullmatch(r"[0-9A-Fa-f]{7}", troisieme_mot) and re.fullmatch(
+        r"[0-9A-Fa-f]{7}", quatrieme_mot
+    ):
+        return premier_mot
 
-def is_module_processing(
-    error_handler, current_module: Module, line_counter: int
-) -> bool:
-
-    if current_module is not None:
-        error_handler.log_error("New loadlib section detected.")
-        error_handler.log_error(
-            f"Line number read from the input file is {line_counter}."
-        )
-        error_handler.log_error(
-            f"Module {current_module.info.module_name} is currently being processed."
-        )
-        error_handler.log_error(f"Id Module is {hex(id(current_module))}.")
-        error_handler.log_error(f"Id ModuleInfo is {hex(id(current_module.info))}.")
-        error_handler.log_error(f"Id ModuleCSECT is {hex(id(current_module.CSECT))}.")
-        return True  # True pour indiquer qu'une erreur a été détectée
-    return False  # Aucun problème détecté
-
-
-def is_loadlib_processing(
-    error_handler, current_loadlib: Loadlib, line_counter: int
-) -> bool:
-
-    if current_loadlib is not None:
-        error_handler.log_error("New loaddlib section detected.")
-        error_handler.log_error(
-            f"line number read from the input file is {line_counter}."
-        )
-        error_handler.log_error(
-            f"Loadlib {current_loadlib.loadlib_name} is currently being processed."
-        )
-        error_handler.log_error(f"Id loadlib is {hex(id(current_loadlib))}.")
-        return True  # True pour indiquer qu'une erreur a été détectée
-    return False  # Aucun problème détecté
+    return None

@@ -95,4 +95,39 @@ Ci-dessous, vous trouverez la structure du fichier résultant de l'analyse de pl
 
     - La fin de la section LOADLIB peut également être signalée par une ligne spécifique indiquant l'absence de membres dans le PDS, formatée comme suit : « `FMNBE329 The PDS contains no members.` »
 
+## Les CSECT
 
+- DFHECI
+  - Stub CICS
+  - Il joue un rôle essentiel dans l'intégration des programmes COBOL à l'environnement CICS, en permettant l'exécution des commandes CICS directement depuis ces programmes. Le stub DFHECI, est inclus dans le LOAD module par le BINDER (link-edit). Il sert de point d'entrée pour les commandes CICS émises apr le programme COBOL, lorsque l'une de ces commandes est rencontrée, le contrôle est transféré au stub DFHECI, qui interprète la commande et transmet les informations requises au système CICS.
+
+- DSNCLI:
+  - C'est le module d'interface de langage pour CICS. Il permet aux programmes COBOL s'exécutant dans un environnement CICS d'accéder aux données DB2. L'inclusion de DSNCLI est nécessaire pour les applications COBOL qui interagissent avec DB2 sous CICS
+
+- DSNELI
+  - Il s'agit du module d'interface de langage pour l'environnement TSO (Time Sharing Option). Il permet aux programmes COBOL s'exécutant sous TSO d'accéder aux données DB2
+ 
+- DSNULI
+  - C'est le module **Universal Language Interface**. Il peut être utilisé à la place des modules d'interface spécifiques à l'environnement comme **DSNALI**, **DSNCLI** ou **DSNELI**. DSNULI détermine l'environnement d'exécution (TSO, CICS, IMS, etc.) et charge dynamiquement le module d'interface approprié. Son utilisation simplifie la création de LOAD modules pouvant fonctionner dans différents environnements. Cependant, lier directement le module d'interface spécifique à l'environnement peut offrir de meilleures performances.
+  - Pas trouvé dans les LOAD analysés par VLM File Manager chez LCL
+
+- CSQBSTUB
+  - Stub program for z/OS batch programs 
+
+- CSQBRRSI
+  - Stub program for z/OS batch programs using RRS by way of the MQI 
+
+- CSQBRSTB
+  - Stub program for z/OS batch programs using RRS directly 
+
+- CSQCSTUB
+  - Stub program for CICS® programs 
+
+- CSQQSTUB
+  - Stub program for IMS programs 
+
+- CSQXSTUB
+  - Stub program for distributed queuing non-CICS exits 
+
+- CSQASTUB
+  - Stub program for data-conversion exits 
