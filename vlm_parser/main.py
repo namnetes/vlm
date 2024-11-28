@@ -2,9 +2,9 @@
 from timeit import default_timer as timer
 
 # Importations de modules locaux
-from args_handler import parse_arguments
-from error_handler import ErrorHandler
-from file_reader import process_file
+from vlm_parser.args_handler import parse_arguments
+from vlm_parser.error_handler import ErrorHandler
+from vlm_parser.file_reader import process_file
 
 
 def main():

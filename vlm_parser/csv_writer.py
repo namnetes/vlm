@@ -2,7 +2,7 @@
 import csv  # par exemple, si vous utilisez le module csv
 
 # Importations de modules locaux
-from structures import Loadlibs, Loadlib, Module, ModuleInfo
+from vlm_parser.structures import Loadlibs, Loadlib, Module, ModuleInfo
 
 
 def write_loadlibs_to_csv(listof_all_modules, loadlibs_collection: Loadlibs, outfile):

@@ -1,8 +1,8 @@
 # Importations de modules locaux
-from error_handler import ErrorHandler
-from csv_writer import write_loadlibs_to_csv
-from structures import Loadlibs, Loadlib, Module, ModuleCsect
-from utils import should_ignore_line, get_new_loadlib, get_new_module, is_CSECT_name
+from vlm_parser.error_handler import ErrorHandler
+from vlm_parser.csv_writer import write_loadlibs_to_csv
+from vlm_parser.structures import Loadlibs, Loadlib, Module, ModuleCsect
+from vlm_parser.utils import should_ignore_line, get_new_loadlib, get_new_module, is_CSECT_name
 
 
 def log_missing_loadlib(error_handler, line_counter):

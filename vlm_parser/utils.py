@@ -2,7 +2,7 @@
 import re
 
 # Importations de modules locaux
-from structures import Loadlib, Module, ModuleInfo, ModuleCsect
+from vlm_parser.structures import Loadlib, Module, ModuleInfo, ModuleCsect
 
 
 def is_blank_line(line):

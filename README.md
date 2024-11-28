@@ -1,27 +1,30 @@
 # Structure du projet
 
 ```
-test_date/
-│
-├── vlm.log
-│
-vlm_parser/
-│
-├── __init__.py
-├── args_handler.py
-├── csv_writer.py
-├── error_handling.py
-├── file_reader.py
-├── main.py
-├── structures.py
-└── utils.py
-launch.json
+├── dist
+│   └── fmvlm_linux
+├── README.md
+├── requirements.txt
+├── setup.py
+├── test_data
+│   ├── vlm2.log
+│   ├── vlm.log
+│   └── vlm.log.enc
+└── vlm_parser
+    ├── args_handler.py
+    ├── csv_writer.py
+    ├── error_handler.py
+    ├── file_reader.py
+    ├── __init__.py
+    ├── main.py
+    ├── structures.py
+    └── utils.py
 ```
 
-## Description
-VLM est un utilitaire en ligne de commande conçu pour analyser et traiter les fichiers générés par l'analyse VLM effectuée avec IBM File Manager.
+# Description
+VLM est un utilitaire en ligne de commande conçu pour analyser et traiter les fichiers générés par l'analyse de la fonction VLM de IBM File Manager.
 
-## Installation
+# Cloner les sources dépôt
 Pour installer my_parser, clonez ce dépôt et installez les dépendances :
 
 ```bash
@@ -30,12 +33,24 @@ cd my_parser
 pip install -r requirements.txt
 ```
 
-## Utilisation
+# Packager l'application dans un seul executable
+
+**Pour linux**
+```bash
+pyinstaller --onefile --name fmvlm_linux vlm_parser/main.py
+```
+
+**Pour Windows**
+```bash
+pyinstaller --onefile --name fmvlm.exe vlm_parser/main.py
+```
+
+# Utilisation
 
 Pour exécuter le script `vlm_parser`, utilisez la commande suivante dans votre terminal :
 
 ```bash
-vlm_parser --input_file mon_fichier.dat --output_file resultat.csv
+vlm_parser -f mon_fichier.txt -o resultat.csv
 ```
 
 Options
@@ -55,8 +70,11 @@ Options
     -q, --quiet:
     Active le mode silencieux (quiet). Par défaut, ce mode est activé. Utilisez -q pour supprimer les messages de sortie.
 
+    -v  --verbose:
+    Active l emode verbeux
 
-## Structure du Fichier des VLM à Traiter
+
+# Structure du Fichier des VLM à Traiter
 
 Ci-dessous, vous trouverez la structure du fichier résultant de l'analyse de plusieurs LOADLIB sur IBM Mainframe, réalisée par la fonction VLM (View Load Module) d'IBM File Manager.
 
@@ -95,7 +113,7 @@ Ci-dessous, vous trouverez la structure du fichier résultant de l'analyse de pl
 
     - La fin de la section LOADLIB peut également être signalée par une ligne spécifique indiquant l'absence de membres dans le PDS, formatée comme suit : « `FMNBE329 The PDS contains no members.` »
 
-## Les CSECT
+# Les CSECT
 
 - DFHECI
   - Stub CICS
@@ -131,3 +149,75 @@ Ci-dessous, vous trouverez la structure du fichier résultant de l'analyse de pl
 
 - CSQASTUB
   - Stub program for data-conversion exits 
+  
+# Execution
+
+La commande ci-dessous :
+
+1. Indique à Python d'exécuter le fichier `main.py` comme faisant partie du package `vlm_parser`.
+2. Configure automatiquement les chemins d'import pour que tous les modules du projet soient reconnus.
+
+
+```bash
+python -m vlm_parser.main -h
+```
+
+Si vous préférez exécuter directement le fichier `main.py`, ajoutez manuellement le chemin du projet à votre variable d'environnement `PYTHONPATH`. Exemple :
+
+```bash
+PYTHONPATH=$(pwd) python vlm_parser/main.py -h
+```
+
+Cette méthode est utile pour les besoins temporaires mais n'est pas recommandée pour un usage régulier.
+
+## Pourquoi exécuter avec python -m vlm_parser.main -h ?
+
+Lorsqu'un projet Python est structuré comme un package, Python utilise une organisation basée sur les espaces de noms. L'option -m informe Python que le script doit être exécuté comme un module faisant partie d'un package
+
+---
+
+### Reconnaissance du package
+
+La commande python -m vlm_parser.main fonctionne car elle force Python à traiter vlm_parser comme un package, et main comme un module de ce package.
+
+Lorsque vous exécutez un script directement (python vlm_parser/main.py), Python considère que vous exécutez un fichier isolé. Cela pose problème si des modules du projet (comme args_handler) utilisent des imports relatifs ou des imports basés sur le package, car Python ne reconnaît pas vlm_parser comme un package dans ce contexte.
+
+---
+
+### Configuration des chemins de recherche des modules
+
+Avec `-m`, Python ajoute automatiquement le répertoire parent de `vlm_parser` (dans ce cas, le dossier `vlm/`) au **`sys.path`**. Cela permet à tous les imports comme `from vlm_parser.args_handler import parse_arguments` de fonctionner correctement.
+
+Si vous exécutez `main.py` directement, Python ne configure pas automatiquement le contexte du package, et vous obtenez l'erreur :
+
+```plaintext
+ModuleNotFoundError: No module named 'vlm_parser'
+```
+
+---
+
+### Meilleures pratiques pour les packages
+
+L'approche `python -m package.module` est considérée comme une **bonne pratique** dans les projets Python :
+- Elle est cohérente pour exécuter des modules dans des projets multi-fichiers.
+- Elle fonctionne indépendamment de l'endroit où vous exécutez la commande (tant que vous êtes dans le répertoire parent ou que vous avez configuré le `PYTHONPATH`).
+
+---
+
+### Revenir en arrière (imports relatifs)
+
+Si vous souhaitez revenir à une exécution directe du fichier `main.py` sans utiliser `-m`, vous pouvez modifier les imports dans tous les fichiers de votre projet pour qu'ils soient **relatifs**, comme suit :
+
+Exemple d'import relatif dans `main.py` :
+
+```python
+from args_handler import parse_arguments
+from error_handler import ErrorHandler
+from file_reader import process_file
+```
+
+Cependant, cette méthode a des inconvénients :
+- Les imports relatifs sont plus fragiles et peuvent devenir ambigus si le projet évolue.
+- Ils ne fonctionneront pas si vous essayez d'utiliser votre package avec `pip install` ou dans un exécutable PyInstaller.
+
+---
