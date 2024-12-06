@@ -2,7 +2,12 @@
 from vlm_parser.error_handler import ErrorHandler
 from vlm_parser.csv_writer import write_loadlibs_to_csv
 from vlm_parser.structures import Loadlibs, Loadlib, Module, ModuleCsect
-from vlm_parser.utils import should_ignore_line, get_new_loadlib, get_new_module, is_CSECT_name
+from vlm_parser.utils import (
+    should_ignore_line,
+    get_new_loadlib,
+    get_new_module,
+    is_CSECT_name,
+)
 
 
 def log_missing_loadlib(error_handler, line_counter):
@@ -236,6 +241,11 @@ def process_file(input_file, output_file, csv_separator, log_file, verbose):
 
                 # ========= Début d'une nouvelle section table CSECT =========
                 if line.startswith("Name      Type"):
+                    # Gestion de la rupture de page avec un en-tête dans la section CSECT.
+                    # -> Est-ce une section table CSECT est déjà en cours ?
+                    #    -> Oui, alors il y a une rupture !
+                    if current_module.CSECT is not None:
+                        continue
 
                     # Erreur Détectée
                     if current_module is None:
@@ -267,6 +277,11 @@ def process_file(input_file, output_file, csv_separator, log_file, verbose):
                     current_csect = ModuleCsect()
                     current_csect.set_csect_data(csect_name, line)
                     current_module.CSECT.append(current_csect)
+                    if verbose:
+                        error_handler.log_info(
+                            f"(lc={line_counter}) CSECT {csect_name} added."
+                        )
+
                     current_csect = None
 
             # ================== Fin du fichier en entrée ==================
