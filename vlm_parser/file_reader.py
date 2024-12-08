@@ -241,10 +241,10 @@ def process_file(input_file, output_file, csv_separator, log_file, verbose):
 
                 # ========= Début d'une nouvelle section table CSECT =========
                 if line.startswith("Name      Type"):
-                    # Gestion de la rupture de page avec un en-tête dans la section CSECT.
-                    # -> Est-ce une section table CSECT est déjà en cours ?
-                    #    -> Oui, alors il y a une rupture !
-                    if current_module.CSECT is not None:
+                    # Cas d'une éventuelle rupture de page avec un nouvel en-tête dans la section CSECT.
+                    # Vérifie si l'attribut "CSECT" existe dans l'objet current_module
+                    # et si "CSECT" est une liste vide
+                    if hasattr(current_module, "CSECT") and current_module.CSECT == []:
                         continue
 
                     # Erreur Détectée

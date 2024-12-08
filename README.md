@@ -22,25 +22,33 @@
 ```
 
 # Description
-VLM est un utilitaire en ligne de commande conçu pour analyser et traiter les fichiers générés par l'analyse de la fonction VLM de IBM File Manager.
 
-# Cloner les sources dépôt
+IBM File Manager propose une fonction VLM qui analyse un load module Maonframe. Cet outil, plus moderne que l'historique AMBLIST, fournit des informations générales et détaillées sur ce module, telles que son nom, la date de l'édition de lien (linkedit), le compilateur utilisé pour sa compilation, etc. De plus, il offre une list eexhaustive des csects du module, avec leurs caractéristiques spécifiques.
+
+Cette fonction peut être utilisée soit pour analyser un load module, soit pour analyser tous les load modules d'une loadlib donnée.
+
+# Cloner les sources dépôt GitHub
+
 Pour installer my_parser, clonez ce dépôt et installez les dépendances :
 
+Voici l'URL au format markdown :
+
 ```bash
-git clone [URL non valide supprimée]
+git clone git@github.com:namnetes/vlm.git
 cd my_parser
 pip install -r requirements.txt
 ```
 
-# Packager l'application dans un seul executable
+# Packager l'application dans un executable unique
 
 **Pour linux**
+
 ```bash
 pyinstaller --onefile --name fmvlm_linux vlm_parser/main.py
 ```
 
 **Pour Windows**
+
 ```bash
 pyinstaller --onefile --name fmvlm.exe vlm_parser/main.py
 ```
@@ -149,7 +157,69 @@ Ci-dessous, vous trouverez la structure du fichier résultant de l'analyse de pl
 
 - CSQASTUB
   - Stub program for data-conversion exits 
-  
+
+# Structures des classes de données
+
+```mermaid
+classDiagram
+    class Module {
+        - line_counter : int
+        - DB2 : boolean
+        - CICS : boolean
+        - MQ : boolean
+        - Stub : boolean
+        - info : ModuleInfo
+        - CSECT : list<ModuleCsect>
+        + add_csect(csect: ModuleCsect)
+    }
+
+    class ModuleInfo {
+        - library_name : str
+        - module_name : str
+        - linked_date : str
+        - linked_time : str
+        - epa : str
+        - size : str
+        - ttr : str
+        - ssi : str
+        - ac : str
+        - amode : str
+        - rmode : str
+        + set_library_name(line: str)
+        + set_module_name(line: str)
+        + set_linked_on(line: str)
+        + set_epa(line: str)
+    }
+
+    class ModuleCsect {
+        - csect_name : str
+        - csect_address : str
+        - csect_size : str
+        - csect_amode : str
+        - csect_rmode : str
+        - csect_comp1 : str
+        - csect_comp2 : str
+        - csect_linked : str
+        + set_csect_data(csect_name: str, line: str)
+    }
+
+    class Loadlib {
+        - loadlib_name : str
+        - loadlib_modules : list<Module>
+        + add_module(module: Module)
+    }
+
+    class Loadlibs {
+        - loadlibs : list[Loadlib>
+        + add_loadlib(loadlib: Loadlib)
+    }
+
+    Module "1" -- "*" ModuleCsect : has
+    Module "1" -- "1" ModuleInfo : has
+    Loadlib "1" -- "*" Module : contains
+    Loadlibs "1" -- "*" Loadlib : contains
+```
+
 # Execution
 
 La commande ci-dessous :
