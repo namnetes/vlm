@@ -1,0 +1,9 @@
+# Environnement virtuel Python
+.venv/
+
+# Ignorer tous les fichiers du répertoire datas sauf les *.tar.bz2
+datas/*
+!datas/*.tar.bz2
+!datas/*.tar.gz
+
+
