@@ -25,8 +25,8 @@
 | Terme        | Définition                                                                                                                       |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | **VLM**      | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport XML reformaté issu du pipeline est l'entrée de ce script. |
-| **Loadlib**  | Bibliothèque de chargement (répertoire de programmes sur le mainframe).                                                          |
-| **Loadmod**  | Module de chargement (un programme exécutable).                                                                                  |
+| **Loadlib**  | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                    |
+| **Loadmod**  | Module exécutable contenu dans une loadlib.                                                                                      |
 | **CSECT**    | _Control Section_ — sous-partie d'un programme COBOL compilé.                                                                   |
 | **Copt**     | Options de compilation COBOL associées à une CSECT.                                                                              |
 | **LEINFO**   | Pseudo-option de compilation IBM LE (Language Environment) — métadonnée runtime, filtrée en sortie.                             |

@@ -24,10 +24,10 @@
 | Terme            | Définition                                                                                                                                      |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VLM**          | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport brut produit par cette fonction (vlm.xml) est l'entrée de ce script. |
-| **Loadlib**      | Bibliothèque de chargement (un répertoire de programmes sur le mainframe).                                                                      |
-| **Loadmod**      | Module de chargement (un programme).                                                                                                            |
+| **Loadlib**      | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                                   |
+| **Loadmod**      | Module exécutable contenu dans une loadlib.                                                                                                     |
 | **CSECT**        | _Control Section_ — sous-partie d'un programme (équivalent d'un module ou d'une fonction).                                                      |
-| **DSN**          | _Data Set Name_ — nom d'une ressource sur le mainframe (équivalent d'un chemin de fichier).                                                     |
+| **DSN**          | _Dataset Name_ — nom de fichier z/OS à structure simple ou complexe.                                                                           |
 | **ASA**          | Caractère de contrôle imprimante hérité du mainframe, placé en **première colonne** de chaque ligne. Les valeurs possibles sont : ` ` (normal), `0` (saut de ligne), `1` (saut de page), `-` (retour arrière). Ce caractère n'a aucun intérêt dans un XML. |
 | **PDS**          | _Partitioned Data Set_ — fichier partitionné mainframe (comparable à un répertoire).                                                            |
 | **File Manager** | Utilitaire IBM qui génère le rapport VLM brut en entrée.                                                                                        |

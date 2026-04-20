@@ -24,8 +24,8 @@
 | Terme        | Définition                                                                                                                       |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | **VLM**      | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le fichier JSON produit par le pipeline à partir de cette sortie est l'entrée de ce script. |
-| **Loadlib**  | Bibliothèque de chargement IBM z/OS (ex. `SYS1.LINKLIB`) — équivalent d'un répertoire de programmes.                           |
-| **Loadmod**  | Module de chargement (un programme exécutable lié).                                                                              |
+| **Loadlib**  | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables). Ex. : `SYS1.LINKLIB`.                             |
+| **Loadmod**  | Module exécutable contenu dans une loadlib.                                                                                      |
 | **CSECT**    | _Control Section_ — sous-partie d'un programme COBOL compilé. Un loadmod peut contenir plusieurs CSECTs.                        |
 | **COPT**     | _Compilation OPTions_ — liste des options passées au compilateur IBM COBOL 6.5 lors de la compilation d'un CSECT.               |
 | **Préfixe**  | Indicateur `"1"` ou `"0"` placé en première colonne du CSV : `"1"` si le CSECT est le module principal (même nom), `"0"` sinon. |

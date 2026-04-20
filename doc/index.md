@@ -37,6 +37,7 @@ extract_copt.py   →  CSV + TXT           Extraction des options par CSECT
 | [build_json.py](build_json/business_rules.md) | Étape 3 — conversion XML → JSON |
 | [extract_copt.py](extract_copt/business_rules.md) | Étape 4 — extraction COPT par CSECT → CSV |
 | [inspect_copt.py](inspect_copt/business_rules.md) | Utilitaire — inspection des balises COPT d'un XML |
+| [export_csv.sh](export_csv/guide.md) | Script Bash — export du JSON vers CSV (3 modes) |
 
 ## Commandes rapides
 

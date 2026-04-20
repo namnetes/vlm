@@ -1,7 +1,7 @@
-site_name: VLM Pipeline — Documentation
+site_name: VLM — Analyse des loadlibs z/OS
 site_description: >
-  Pipeline ETL de transformation des rapports IBM File Manager (VLM)
-  en données JSON et CSV interrogeables.
+  Analyse et extraction des loadlibs IBM z/OS à partir des rapports
+  IBM File Manager (View Load Module) — pipeline Python vers JSON et CSV.
 site_author: Alan MARCHAND
 docs_dir: doc
 
@@ -44,6 +44,9 @@ markdown_extensions:
   - toc:
       permalink: true
       title: Sur cette page
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -74,4 +77,6 @@ nav:
       - build_json.py: build_json/business_rules.md
       - extract_copt.py: extract_copt/business_rules.md
       - inspect_copt.py: inspect_copt/business_rules.md
-      - MkDocs: mkdocs/guide.md
+      - export_csv.sh: export_csv/guide.md
+  - MkDocs:
+      - Guide: mkdocs/guide.md

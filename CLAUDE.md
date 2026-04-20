@@ -9,8 +9,8 @@ VLM is a data processing pipeline that transforms raw IBM File Manager reports
 All source code and documentation is written in **French**.
 
 **Domain vocabulary:**
-- **Loadlib** — z/OS load library (PDS/PDSE containing executables)
-- **Loadmod** — load module (an executable binary inside a loadlib)
+- **Loadlib** — z/OS load library (PDS/PDSE containing Load Modules)
+- **Loadmod** — load module (executable module inside a loadlib)
 - **CSECT** — Control SECTion (a compiled unit within a loadmod)
 - **COPT** — Compilation OPTions (compiler flags: COBOL, C++, PL/I)
 - **Identify** — package identifier in the form `AppCode/Hash/PackageCode`

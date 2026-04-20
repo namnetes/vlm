@@ -28,7 +28,7 @@
 #           la matière première du pipeline.
 #   COPT  = Compilation OPTions — options passées au compilateur IBM COBOL 6.5.
 #   CSECT = Control SECTion — unité de code compilée à l'intérieur d'un loadmod.
-#   Loadmod = Load Module — programme exécutable lié (équivalent d'un binaire Unix).
+#   Loadmod = Load Module — module exécutable contenu dans une loadlib.
 #   Loadlib = Load Library — bibliothèque PDS/PDSE qui contient les loadmods.
 #
 # Usage :

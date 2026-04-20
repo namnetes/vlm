@@ -435,7 +435,7 @@ run_global_mode() {
         +"CICS=\($csect.CICS);"
         +"DB2=\($csect.DB2);"
         +"WMQ=\($csect.WMQ);"
-        +"\($csect.Identify)"
+        +"\($csect.Identify // "")"
     ' "$INPUT_JSON" > "$OUTPUT"
     # > "$OUTPUT" : redirige toute la sortie de jq vers le fichier CSV.
     # Si le fichier n'existe pas, il est créé. S'il existe, il est écrasé
@@ -460,8 +460,6 @@ run_global_mode() {
 # Les options sont triées par ordre alphabétique.
 # =============================================================================
 run_options_mode() {
-    echo "Collecting compilation options per load and loadlib..."
-
     # Explication des opérateurs jq supplémentaires par rapport au mode global :
     #
     #   | select($lm.Name == $csect.Name)
@@ -516,54 +514,26 @@ run_options_mode() {
 #   loadlib;load_name;linkedon;csect_name;compiler
 # =============================================================================
 run_compiler_mode() {
-    echo "Collecting compilers per load and loadlib..."
-
-    # Dans ce mode, jq produit une ligne pour CHAQUE CSECT (pas seulement le
-    # principal). La sélection du CSECT principal est déléguée à awk via un
-    # pipe Unix, pour illustrer la composition des outils.
-    #
-    # Le pipe Unix | entre les deux commandes signifie que la sortie standard
-    # (stdout) de la commande de gauche (jq) devient l'entrée standard (stdin)
-    # de la commande de droite (awk). Aucun fichier temporaire n'est créé :
-    # les données transitent directement en mémoire. C'est plus efficace pour
-    # de gros volumes.
-    #
-    # Explication de awk -F';' '$2 == $4' :
-    #
-    #   awk : outil de traitement de texte structuré. Il lit le flux ligne par
-    #         ligne, découpe chaque ligne en champs et applique des règles.
-    #
-    #   -F';' : définit le SÉPARATEUR DE CHAMP comme étant le point-virgule.
-    #           Sans cette option, awk utilise l'espace ou la tabulation.
-    #           Avec -F';', pour la ligne "MY.LIB;MYPGM;2025/06/01;MYPGM;COBOL",
-    #           $1 = "MY.LIB", $2 = "MYPGM", $3 = "2025/06/01",
-    #           $4 = "MYPGM", $5 = "COBOL".
-    #
-    #   '$2 == $4' : règle awk. Syntaxe générale : 'condition { action }'.
-    #               Ici il n'y a pas d'action explicite entre accolades.
-    #               Quand l'action est omise, awk applique l'action par défaut :
-    #               IMPRIMER la ligne entière (équivalent de { print $0 }).
-    #               La condition $2 == $4 est vraie quand le nom du loadmod
-    #               (colonne 2) est identique au nom du CSECT (colonne 4),
-    #               c'est-à-dire pour le CSECT principal uniquement.
-    #
-    # Résultat : seules les lignes où le module et le CSECT ont le même nom
-    # sont conservées et écrites dans $OUTPUT.
+    # select($lm.Name == $csect.Name) : même filtre que dans run_options_mode.
+    # Ne retient que le CSECT dont le nom est identique à celui du module
+    # (le CSECT principal). Les stubs DB2, CICS et autres CSECTs secondaires
+    # ont des noms différents et sont ainsi exclus.
     jq -r --arg min_date "$MIN_LINKEDIT_DATE" '
         .[]
         | .Loadlib as $lib
         | .Loadmods[] as $lm
         | select($min_date == "" or ($lm.Linkedon >= $min_date))
         | $lm.CSECTs[] as $csect
+        | select($lm.Name == $csect.Name)
         | "\($lib);"
         +"\($lm.Name);"
         +"\($lm.Linkedon);"
         +"\($csect.Name);"
         +"\($csect.Compiler1)"
-    ' "$INPUT_JSON" | awk -F';' '$2 == $4' > "$OUTPUT"
+    ' "$INPUT_JSON" > "$OUTPUT"
 
     [ -n "$MIN_LINKEDIT_DATE" ] && echo "Date filter: >= $MIN_LINKEDIT_DATE"
-    echo "Compiler mode: compilers collected (primary entry only)."
+    echo "Compiler mode: compilers collected (primary CSECT only)."
     echo "Output file: $OUTPUT created."
 }
 

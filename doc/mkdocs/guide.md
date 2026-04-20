@@ -9,17 +9,17 @@
 
 ## Sommaire
 
-1. [Qu'est-ce que MkDocs ?](#1-quest-ce-que-mkdocs)
-2. [Prérequis système](#2-prerequis-systeme)
+1. [Qu'est-ce que MkDocs ?](#1-quest-ce-que-mkdocs-)
+2. [Prérequis système](#2-prérequis-système)
 3. [Installation sur Ubuntu 24.04](#3-installation-sur-ubuntu-2404)
-4. [Ajouter MkDocs à un projet Python](#4-ajouter-mkdocs-a-un-projet-python)
+4. [Ajouter MkDocs à un projet Python](#4-ajouter-mkdocs-à-un-projet-python)
 5. [Structure d'un projet MkDocs](#5-structure-dun-projet-mkdocs)
-6. [Configuration : `mkdocs.yml`](#6-configuration-mkdocsyml)
-7. [Écrire du contenu en Markdown](#7-ecrire-du-contenu-en-markdown)
-8. [Exemple concret : ce projet VLM](#8-exemple-concret-ce-projet-vlm)
+6. [Configuration : `mkdocs.yml`](#6-configuration--mkdocsyml)
+7. [Écrire du contenu en Markdown](#7-écrire-du-contenu-en-markdown)
+8. [Exemple concret : ce projet VLM](#8-exemple-concret--ce-projet-vlm)
 9. [Commandes quotidiennes](#9-commandes-quotidiennes)
-10. [Mise en œuvre depuis un script Bash](#10-mise-en-uvre-depuis-un-script-bash)
-11. [Dépannage](#11-depannage)
+10. [Mise en œuvre depuis un script Bash](#10-mise-en-œuvre-depuis-un-script-bash)
+11. [Dépannage](#11-dépannage)
 
 ---
 
@@ -507,54 +507,201 @@ clé = "valeur"
 
 ### 7.4 Admonitions (boîtes colorées)
 
-Les admonitions sont des boîtes mises en valeur. Elles nécessitent
-l'extension `admonition` activée dans `mkdocs.yml`.
+Les admonitions sont des boîtes mises en valeur.
+
+Elles nécessitent l'extension `admonition` dans `mkdocs.yml`.
+
+**Syntaxe de base :**
 
 ```markdown
 !!! note "Titre de la note"
-    Contenu de la note. L'indentation de 4 espaces est obligatoire.
+    Contenu de la note.
+    L'indentation de 4 espaces est obligatoire.
     Le titre entre guillemets est optionnel.
-
-!!! tip
-    Astuce sans titre personnalisé.
-
-!!! warning "Attention"
-    Avertissement important.
-
-!!! danger "Critique"
-    Action irréversible.
-
-??? "Section repliée par défaut"
-    Ce texte est caché jusqu'au clic. Nécessite pymdownx.details.
-
-???+ "Section ouverte par défaut"
-    Ce texte est visible, mais peut être replié.
 ```
 
-Types disponibles : `note`, `abstract`, `info`, `tip`, `success`,
-`question`, `warning`, `failure`, `danger`, `bug`, `example`, `quote`.
+**Règles de syntaxe :**
+
+- `!!!` suivi du type (`note`, `warning`, etc.)
+- Le titre entre `"..."` est optionnel. Sans titre, le type s'affiche automatiquement.
+- Le contenu est indenté de **4 espaces**. Cette indentation est obligatoire.
+
+**Types disponibles :**
+
+| Type | Couleur | Usage |
+|---|---|---|
+| `note` | Bleu | Information complémentaire |
+| `info` | Bleu clair | Précision utile |
+| `tip` | Vert | Conseil, bonne pratique |
+| `success` | Vert | Résultat attendu, validation |
+| `warning` | Orange | Avertissement |
+| `danger` | Rouge | Action irréversible, risque |
+| `bug` | Rouge | Problème connu |
+| `example` | Violet | Exemple concret |
+| `quote` | Gris | Citation |
+
+```markdown
+!!! tip "Conseil"
+    Préférez `uv run mkdocs serve` à `mkdocs serve`.
+    Cela garantit l'utilisation de la bonne version.
+
+!!! warning "Attention"
+    Ne versionnez pas le répertoire `site/`.
+    Ajoutez-le à votre `.gitignore`.
+
+!!! danger "Irréversible"
+    `git reset --hard` supprime toutes les modifications non commitées.
+```
+
+---
+
+### 7.4b Volets repliables (details)
+
+Un volet repliable se comporte comme une admonition, mais l'utilisateur
+peut l'ouvrir ou le fermer en cliquant dessus.
+
+Cela nécessite l'extension `pymdownx.details` dans `mkdocs.yml`.
+
+**Différence avec `!!!` :**
+
+| Syntaxe | Comportement |
+|---|---|
+| `!!! note` | Toujours visible, non repliable |
+| `??? note` | Replié par défaut, s'ouvre au clic |
+| `???+ note` | Ouvert par défaut, peut être replié |
+
+**Exemple — replié par défaut (`???`) :**
+
+```markdown
+??? "Afficher le détail technique"
+    Cette section est cachée au chargement de la page.
+    L'utilisateur doit cliquer pour la lire.
+
+    On peut mettre n'importe quel contenu à l'intérieur :
+    du texte, des listes, des blocs de code.
+```
+
+**Exemple — ouvert par défaut (`???+`) :**
+
+```markdown
+???+ tip "Astuce avancée"
+    Cette section est visible au chargement, mais peut être refermée.
+    Utile pour du contenu important que l'on veut quand même pouvoir masquer.
+```
+
+**Quand utiliser les volets repliables ?**
+
+- Cacher des explications longues ou des détails techniques secondaires.
+- Proposer des exemples complets sans alourdir la page.
+- Masquer des réponses dans un guide de type FAQ.
+
+```markdown
+??? example "Exemple complet de filtre jq"
+    ```bash
+    jq -r '
+        .[]
+        | .Loadlib as $lib
+        | .Loadmods[] as $lm
+        | "\($lib);\($lm.Name)"
+    ' datas/vlm.json
+    ```
+
+??? warning "Pourquoi ne pas utiliser `pip` ?"
+    `pip` installe les paquets dans l'environnement Python global.
+    Cela peut créer des conflits entre projets.
+    Utilisez toujours `uv` pour isoler les dépendances par projet.
+```
+
+---
 
 ### 7.5 Onglets dans le contenu
+
+Les onglets permettent de présenter plusieurs variantes d'un même contenu.
+
+L'utilisateur clique sur un onglet pour afficher la variante correspondante.
+
+Cela nécessite l'extension `pymdownx.tabbed` avec `alternate_style: true` dans `mkdocs.yml`.
+
+**Syntaxe :**
+
+```markdown
+=== "Nom de l'onglet 1"
+
+    Contenu de l'onglet 1.
+    Indenté de 4 espaces.
+
+=== "Nom de l'onglet 2"
+
+    Contenu de l'onglet 2.
+```
+
+**Règles de syntaxe :**
+
+- `===` suivi du nom de l'onglet entre `"..."`.
+- Une **ligne vide** est obligatoire entre `=== "..."` et le contenu.
+- Le contenu est indenté de **4 espaces**.
+- Les onglets doivent se suivre sans ligne vide entre eux.
+
+**Exemple — commandes par système d'exploitation :**
 
 ```markdown
 === "Ubuntu / Debian"
 
     ```bash
-    sudo apt install mon-paquet
+    sudo apt install jq
     ```
 
 === "Arch Linux"
 
     ```bash
-    pacman -S mon-paquet
+    sudo pacman -S jq
     ```
 
 === "macOS"
 
     ```bash
-    brew install mon-paquet
+    brew install jq
     ```
 ```
+
+**Exemple — plusieurs types de contenu dans un onglet :**
+
+```markdown
+=== "Python"
+
+    Installer avec `uv` :
+
+    ```bash
+    uv add requests
+    ```
+
+    Importer dans le code :
+
+    ```python
+    import requests
+    response = requests.get("https://exemple.com")
+    ```
+
+=== "Bash"
+
+    Installer `curl` :
+
+    ```bash
+    sudo apt install curl
+    ```
+
+    Faire une requête :
+
+    ```bash
+    curl https://exemple.com
+    ```
+```
+
+**Quand utiliser les onglets ?**
+
+- Présenter la même procédure sur plusieurs systèmes (Linux, macOS, Windows).
+- Montrer le même exemple dans plusieurs langages.
+- Proposer une version simple et une version avancée d'une configuration.
 
 ### 7.6 Diagrammes Mermaid
 
