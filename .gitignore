@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+.eggs/
+
+# uv
+.venv/
+venv/
+env/
+ENV/
+.uv/
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Type checking & linting
+.mypy_cache/
+.dmypy.json
+.pytype/
+.pyre/
+.ruff_cache/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Environment variables (never commit real values)
+.env
+.envrc
+!.env.example
+
+# Documentation build
+site/
+
+# IDEs and editors
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+# VS Code — personal workspace and extension data (project settings in .vscode/ are committed)
+*.code-workspace
+.history/
+# Zed
+.zed/
+# nano
+*.save
+
+# Données du pipeline (fichiers volumineux — XML, JSON, CSV générés)
+datas/
+
+# Logs
+*.log
+logs/

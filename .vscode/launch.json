@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python : VLM pipeline (toutes étapes)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/pipeline.py",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Python : fichier courant",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "pytest",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["-v", "--no-cov"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

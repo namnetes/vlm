@@ -1,0 +1,50 @@
+line-length = 88
+target-version = "py312"
+
+[lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C90",   # mccabe complexity
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+    "PTH",   # flake8-use-pathlib
+    "PERF",  # perflint
+    "TRY",   # tryceratops
+    "LOG",   # flake8-logging
+    "G",     # flake8-logging-format
+    "ERA",   # eradicate (commented-out code)
+    "FBT",   # flake8-boolean-trap
+    "PL",    # pylint
+    "D",     # pydocstyle
+]
+ignore = [
+    "E501",    # line too long — handled by formatter
+    "B008",    # function call in default arg
+    "D100",    # missing docstring in public module
+    "D104",    # missing docstring in public package
+    "D203",    # 1 blank line before class docstring — conflicts with D211
+    "D213",    # summary line on second line — conflicts with D212
+    "TRY003",  # long messages outside exception class — too restrictive
+]
+fixable = ["ALL"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-args = 8
+
+[lint.per-file-ignores]
+"tests/*" = ["D101", "D102", "D103", "PLR2004"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "lf"

@@ -1,0 +1,43 @@
+# Configuration du pipeline VLM
+# Chargé par src/utils.py via tomllib (stdlib Python 3.11+).
+
+[logging]
+# Chemin du fichier de log, relatif à la racine du projet.
+file = "datas/pipeline.log"
+
+# Niveau de criticité appliqué au handler fichier ET au logger.
+# Valeurs acceptées : DEBUG | INFO | WARNING | ERROR
+level = "INFO"
+
+# Mode d'ouverture du fichier de log.
+# "a" = ajout (conserve l'historique entre les exécutions)
+# "w" = écrasement (repart d'un fichier vide à chaque lancement)
+mode = "a"
+
+# Taille maximale du fichier avant rotation (en octets).
+# 2 147 483 648 = 2 Go
+max_bytes = 2_147_483_648
+
+# Nombre de fichiers de sauvegarde conservés après rotation.
+# Ex : backup_count = 5 → pipeline.log.1 … pipeline.log.5
+backup_count = 5
+
+# Format appliqué à tous les handlers.
+# - asctime   : Date et heure de l'événement (précision à la milliseconde).
+# - levelname : Niveau de log (INFO, ERROR...). Aligné à gauche sur 8 car.
+# - name      : Nom du source python. Aligné à gauche sur 12 car.
+# - message   : Le contenu textuel du message de log.
+format = "%(asctime)s | %(levelname)-8s | %(name)-12s | %(message)s"
+
+[settings]
+# Répertoire où sont produits les fichiers intermédiaires et résultats.
+data_dir = "datas"
+
+# Fichier rapport VLM brut en entrée du pipeline (encodage mainframe iso8859-1).
+vlm_input = "datas/vlm.xml"
+
+# Fichier JSON produit par build_json.py — sortie principale du pipeline.
+final_json = "datas/vlm.json"
+
+# Fichier CSV produit par extract_copt.py — options de compilation par CSECT.
+copt_csv = "datas/copt/copt.csv"
