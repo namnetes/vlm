@@ -1,8 +1,8 @@
 # Règles métier — `clean_report.py`
 
-> **Rôle du script :** transformer un rapport brut émis par IBM File Manager
-> (mainframe z/OS) en un fichier XML propre et bien formé, exploitable par
-> les étapes suivantes du pipeline VLM.
+> **Rôle du script :** transformer un rapport généré par IBM File Manager VLM
+> en un fichier XML propre et bien formé, exploitable par les étapes suivantes
+> du pipeline VLM.
 
 ---
 
@@ -21,17 +21,17 @@
 
 ## 1. Contexte et glossaire
 
-| Terme            | Définition                                                                                                                                      |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**          | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport brut produit par cette fonction (vlm.xml) est l'entrée de ce script. |
-| **Loadlib**      | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                                   |
-| **Loadmod**      | Module exécutable contenu dans une loadlib.                                                                                                     |
-| **CSECT**        | _Control Section_ — sous-partie d'un programme (équivalent d'un module ou d'une fonction).                                                      |
-| **DSN**          | _Dataset Name_ — nom de fichier z/OS à structure simple ou complexe.                                                                           |
-| **ASA**          | Caractère de contrôle imprimante hérité du mainframe, placé en **première colonne** de chaque ligne. Les valeurs possibles sont : ` ` (normal), `0` (saut de ligne), `1` (saut de page), `-` (retour arrière). Ce caractère n'a aucun intérêt dans un XML. |
-| **PDS**          | _Partitioned Data Set_ — fichier partitionné mainframe (comparable à un répertoire).                                                            |
-| **File Manager** | Utilitaire IBM qui génère le rapport VLM brut en entrée.                                                                                        |
-| **FMNBXXX**      | Codes de message émis par File Manager (ex. `FMNBF427` = erreur critique).                                                                      |
+| Terme            | Définition                                                                                                                                                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VLM**          | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport produit par cette fonction (vlm.xml) est l'entrée de ce script.                                 |
+| **Loadlib**      | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                                                                                                                          |
+| **Loadmod**      | Module exécutable contenu dans une loadlib.                                                                                                                                                                                            |
+| **CSECT**        | _Control Section_ — sous-partie d'un programme (équivalent d'un module ou d'une fonction).                                                                                                                                             |
+| **DSN**          | _Dataset Name_ — nom de fichier z/OS à structure simple ou complexe.                                                                                                                                                                   |
+| **ASA**          | Caractère de contrôle imprimante, placé en **première colonne** de chaque ligne. Les valeurs possibles sont : ` ` (normal), `0` (saut de ligne), `1` (saut de page), `-` (retour arrière). Ce caractère n'a aucun intérêt dans un XML. |
+| **PDS**          | _Partitioned Data Set_ — fichier partitionné mainframe (comparable à un répertoire).                                                                                                                                                   |
+| **File Manager** | Utilitaire IBM qui génère le rapport VLM en entrée.                                                                                                                                                                                    |
+| **FMNBXXX**      | Codes de message émis par File Manager (ex. `FMNBF427` = erreur critique).                                                                                                                                                             |
 
 ---
 
@@ -73,15 +73,31 @@ Lire une ligne
 
 ## 2b. Paramètres de la ligne de commande
 
-| Paramètre        | Obligatoire | Valeur par défaut  | Description                                  |
-| ---------------- | ----------- | ------------------ | -------------------------------------------- |
-| `-f` / `--file`  | non         | `vlm.xml`          | Chemin du rapport VLM brut en entrée         |
-| `-o` / `--output`| non         | `clean_vlm.xml`    | Chemin du fichier XML de sortie              |
-| `-e` / `--encoding` | non      | `iso8859-1`        | Encodage du fichier source (mainframe)       |
+| Paramètre           | Obligatoire | Valeur par défaut | Description                            |
+| ------------------- | ----------- | ----------------- | -------------------------------------- |
+| `-f` / `--file`     | non         | `vlm.xml`         | Chemin du rapport VLM en entrée        |
+| `-o` / `--output`   | non         | `clean_vlm.xml`   | Chemin du fichier XML de sortie        |
+| `-e` / `--encoding` | non         | `iso8859-1`       | Encodage du fichier source (mainframe) |
 
-> L'encodage `iso8859-1` (aussi appelé Latin-1) est l'encodage standard des
-> fichiers mainframe IBM z/OS en Europe occidentale. Il doit correspondre à
-> l'encodage réel du rapport VLM brut.
+> Sur les systèmes IBM Mainframe, deux environnements cohabitent avec des standards EBCDIC distincts :
+>
+> - Environnement MVS (Historique) : Utilise principalement la page de code EBCDIC IBM-1147. Ce
+>   standard est la version "France" incluant le support du symbole Euro (€).
+> - Environnement USS (Unix System Services) : Utilise généralement la page de code EBCDIC IBM-1047.
+>   Bien qu'il s'agisse du standard "Latin 1" pour les systèmes ouverts chez IBM, il peut présenter
+>   des divergences avec l'IBM-1147 concernant certains caractères spéciaux et accentués propres au
+>   français.
+>
+> Afin de garantir la compatibilité des rapports VLM avec les systèmes x86 (Windows, Linux, macOS), un
+> transcodage est effectué lors de la génération du fichier :
+>
+> - Cible de conversion : Le flux de données est converti en ISO 8859-1 (également appelé Latin-1).
+> - Objectif : Ce standard historique est nativement supporté par les architectures de l'Europe de
+>   l'Ouest, permettant une lecture sans altération des caractères lors du transfert des fichiers du
+>   Mainframe vers des postes de travail ou des serveurs distribués.
+>
+> Bien que l'ISO 8859-1 soit le standard historique de l'Europe de l'Ouest, il est recommandé, pour les
+> évolutions futures, d'envisager un passage vers l'UTF-8.
 
 ---
 

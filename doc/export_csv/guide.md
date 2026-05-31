@@ -9,12 +9,12 @@
 
 1. [Rôle du script](#1-rôle-du-script)
 2. [Prérequis](#2-prérequis)
-3. [Utilisation rapide](#3-utilisation-rapide)
+3. [Utilisation](#3-utilisation)
 4. [Les trois modes d'extraction](#4-les-trois-modes-dextraction)
 5. [Filtre de date](#5-filtre-de-date)
 6. [Variable d'environnement VLM_DATA_DIR](#6-variable-denvironnement-vlm_data_dir)
 7. [Format des fichiers de sortie](#7-format-des-fichiers-de-sortie)
-8. [jq — Guide complet pour débutants](#8-jq--guide-complet-pour-débutants)
+8. [jq — Guide pour débutants](#8-jq--guide-pour-débutants) — voir aussi [Guide jq](jq.md)
 9. [Codes de sortie et dépannage](#9-codes-de-sortie-et-dépannage)
 
 ---
@@ -39,16 +39,11 @@ Trois modes d'extraction sont disponibles :
 
 ## 2. Prérequis
 
-Le script nécessite deux outils :
+Le script nécessite un seul outil externe :
 
 | Outil | Rôle | Vérification |
 |---|---|---|
 | `jq` | Interroger le fichier JSON | `jq --version` |
-| `awk` | Traitement de texte | `awk --version` |
-
-`awk` est présent par défaut sur tous les systèmes Linux et macOS.
-
-`jq` doit être installé manuellement.
 
 **Installer jq sur Ubuntu / Debian :**
 
@@ -65,7 +60,7 @@ jq --version
 
 ---
 
-## 3. Utilisation rapide
+## 3. Utilisation
 
 ### 3.1 Syntaxe
 
@@ -73,7 +68,7 @@ jq --version
 bash script/export_csv.sh -i FICHIER_JSON -o FICHIER_CSV MODE [OPTIONS]
 ```
 
-### 3.2 Exemples
+### 3.2 Exemples en ligne de commande
 
 ```bash
 # Mode global : toutes les métadonnées de chaque CSECT
@@ -96,7 +91,36 @@ bash script/export_csv.sh \
 bash script/export_csv.sh --help
 ```
 
-### 3.3 Options disponibles
+### 3.3 Via le Makefile
+
+Le Makefile expose une cible `query` avec des valeurs par défaut modifiables :
+
+```bash
+# Mode global vers datas/export.csv (défauts)
+make query
+
+# Changer le mode
+make query QUERY_MODE=-p
+make query QUERY_MODE=-c
+
+# Changer le fichier de sortie
+make query QUERY_OUTPUT=datas/compilers.csv QUERY_MODE=-c
+
+# Ajouter un filtre de date
+make query QUERY_DATE=2026/01/01
+
+# Tout combiner
+make query QUERY_MODE=-p QUERY_OUTPUT=datas/opts.csv QUERY_DATE=2026/01/01
+```
+
+| Variable Makefile | Défaut | Description |
+|---|---|---|
+| `QUERY_INPUT` | `datas/vlm.json` | Fichier JSON en entrée |
+| `QUERY_OUTPUT` | `datas/export.csv` | Fichier CSV en sortie |
+| `QUERY_MODE` | `-g` | Mode : `-g`, `-p` ou `-c` |
+| `QUERY_DATE` | _(vide)_ | Filtre de date optionnel `yyyy/mm/dd` |
+
+### 3.4 Options disponibles
 
 | Option | Forme longue | Valeur | Description |
 |---|---|---|---|
@@ -200,6 +224,8 @@ MY.LOAD.LIB;MYPGM;2025/06/01;MYPGM;Enterpr.COBOL for z/OS V6R3
 
 ## 5. Filtre de date
 
+### 5.1 Utilisation
+
 L'option `-d yyyy/mm/dd` retient **uniquement** les modules dont la date de
 link-edit (`Linkedon`) est **supérieure ou égale** à la date indiquée.
 
@@ -211,19 +237,155 @@ bash script/export_csv.sh \
 
 **Format obligatoire :** `yyyy/mm/dd`
 
-| Exemple | Valide ? |
-|---|---|
-| `2025/01/01` | ✓ |
-| `2024/12/31` | ✓ |
-| `01/01/2025` | ✗ jour et année inversés |
-| `2025-01-01` | ✗ tirets non acceptés |
-| `2025/1/1` | ✗ mois et jour sur 1 chiffre |
+| Exemple | Valide ? | Raison |
+|---|---|---|
+| `2025/01/01` | ✓ | — |
+| `2024/12/31` | ✓ | — |
+| `01/01/2025` | ✗ | Jour et année inversés |
+| `2025-01-01` | ✗ | Tirets non acceptés |
+| `2025/1/1` | ✗ | Mois et jour sur 1 chiffre |
 
 !!! info "Pourquoi la comparaison alphabétique fonctionne pour les dates ?"
     Les dates sont au format `aaaa/mm/jj`.
     L'année est en premier, puis le mois, puis le jour.
     Ce format permet un tri alphabétique équivalent au tri chronologique.
     Exemple : `"2025/06/01" > "2025/01/15"` est vrai dans les deux cas.
+
+---
+
+### 5.2 Comment le script découpe la date en interne
+
+Une fois le format validé, le script sépare les trois composantes avec cette
+commande :
+
+```bash
+IFS='/' read -r year month day <<< "2026/01/15"
+```
+
+Le diagramme suivant montre ce qui se passe étape par étape :
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff"}}}%%
+flowchart LR
+    classDef logic fill:#e8eaf6,stroke:#1a237e,color:#000
+    classDef data  fill:#fff3e0,stroke:#e65100,color:#000
+
+    input[/"Entrée : 2026/01/15"/]:::data
+    cmd[["IFS='/' read -r year month day"]]:::logic
+    year[/"year = 2026"/]:::data
+    month[/"month = 01"/]:::data
+    day[/"day = 15"/]:::data
+
+    input -->|"<<< here-string"| cmd
+    cmd -->|"champ 1"| year
+    cmd -->|"champ 2"| month
+    cmd -->|"champ 3"| day
+```
+
+- `IFS='/'` — positionne le séparateur de champs sur `/`
+- `read -r year month day` — assigne chaque champ à une variable
+- `<<< "$2"` — *here-string* : transmet la valeur directement à `read` sans créer de fichier ni de sous-processus
+
+---
+
+### 5.3 Pourquoi `10#$month` et pas simplement `$month` ?
+
+Bash interprète les nombres qui commencent par `0` comme de l'**octal** (base 8).
+En base 8, les chiffres valides vont de `0` à `7`. Les valeurs `08` et `09`
+seraient donc illégales sans précaution.
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff"}}}%%
+flowchart TD
+    classDef logic     fill:#e8eaf6,stroke:#1a237e,color:#000
+    classDef data      fill:#fff3e0,stroke:#e65100,color:#000
+    classDef error     fill:#ffebee,stroke:#c62828,color:#000
+    classDef startStop fill:#e1f5fe,stroke:#01579b,color:#000
+
+    A[/"month = 08 ou 09"/]:::data
+    B{"Préfixe\n10# présent ?"}:::logic
+    C["Bash interprète\nen base 8 (octal)"]:::logic
+    D["Bash interprète\nen base 10"]:::logic
+    E(["Erreur : 8 et 9\nn'existent pas en base 8"]):::error
+    F(["Valeur correcte ✓"]):::startStop
+
+    A --> B
+    B -->|"Non — $month"| C --> E
+    B -->|"Oui — 10#$month"| D --> F
+```
+
+---
+
+### 5.4 Référence — les opérateurs de découpe Bash
+
+!!! note "Ce que le script utilisait avant"
+    Le script découpait la date avec les opérateurs `%%`, `#`, `##` de Bash.
+    Ces quatre lignes ont été **remplacées** par le `IFS='/' read -r` de la
+    section 5.2, plus lisible et plus accessible.
+
+    ```bash
+    # Ancienne version — remplacée
+    year="${2%%/*}"
+    month="${2#*/}"
+    month="${month%%/*}"
+    day="${2##*/}"
+
+    # Nouvelle version
+    IFS='/' read -r year month day <<< "$2"
+    ```
+
+Ces opérateurs apparaissent souvent dans d'autres scripts shell. Les connaître
+reste utile pour lire du code existant.
+
+| Opérateur | Supprime | Depuis |
+|---|---|---|
+| `${var#motif}` | Le préfixe le **plus court** correspondant au motif | le début |
+| `${var##motif}` | Le préfixe le **plus long** correspondant au motif | le début |
+| `${var%motif}` | Le suffixe le **plus court** correspondant au motif | la fin |
+| `${var%%motif}` | Le suffixe le **plus long** correspondant au motif | la fin |
+
+Le `*` dans le motif signifie "n'importe quelle suite de caractères".
+
+**Application à la date `2026/01/15`** — les trois extractions directes :
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff"}}}%%
+flowchart TD
+    classDef logic fill:#e8eaf6,stroke:#1a237e,color:#000
+    classDef data  fill:#fff3e0,stroke:#e65100,color:#000
+
+    input[/"var = 2026/01/15"/]:::data
+
+    op1["${var%%/*}\nSupprime le suffixe le plus long\ncommençant par /"]:::logic
+    op2["${var#*/}\nSupprime le préfixe le plus court\nfinissant par /"]:::logic
+    op3["${var##*/}\nSupprime le préfixe le plus long\nfinissant par /"]:::logic
+
+    r1[/"2026 → année"/]:::data
+    r2[/"01/15 → reste intermédiaire"/]:::data
+    r3[/"15 → jour"/]:::data
+
+    input --> op1 --> r1
+    input --> op2 --> r2
+    input --> op3 --> r3
+```
+
+Pour isoler le mois, une deuxième opération est nécessaire sur le résultat `01/15` :
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff"}}}%%
+flowchart LR
+    classDef logic fill:#e8eaf6,stroke:#1a237e,color:#000
+    classDef data  fill:#fff3e0,stroke:#e65100,color:#000
+
+    A[/"month = 01/15"/]:::data
+    B["${month%%/*}\nSupprime le suffixe /15"]:::logic
+    C[/"month = 01 → mois"/]:::data
+
+    A --> B --> C
+```
+
+C'est précisément ce besoin d'une quatrième ligne pour un résultat intermédiaire
+qui rend cette approche moins lisible que `IFS='/' read -r`.
 
 ---
 
@@ -267,457 +429,16 @@ Les chemins absolus (commençant par `/`) ne sont pas modifiés.
 
 ---
 
-## 8. `jq` — Guide complet pour débutants
+## 8. `jq` — Guide pour débutants
 
-Cette section explique `jq` depuis zéro.
+`export_csv.sh` utilise `jq` pour interroger le fichier JSON.
+Un guide complet est disponible sur la page dédiée :
 
-Elle utilise le fichier JSON VLM comme support tout au long des exemples.
+**→ [Guide jq](jq.md)**
 
-### 8.1 Qu'est-ce que JSON ?
-
-JSON est un format de fichier texte.
-
-Il stocke des données structurées avec des clés et des valeurs.
-
-Voici un extrait simplifié du fichier JSON utilisé par ce script :
-
-```json
-[
-  {
-    "Loadlib": "MY.LOAD.LIB",
-    "MemberCount": 2,
-    "Loadmods": [
-      {
-        "Name": "MYPGM",
-        "Linkedon": "2025/06/01",
-        "CSECTs": [
-          {
-            "Name": "MYPGM",
-            "Compiler1": "Enterpr.COBOL for z/OS V6R3",
-            "ThreadSafe": false,
-            "CICS": false,
-            "DB2": false,
-            "WMQ": false,
-            "Identify": "DY012345678",
-            "Copt": ["RENT", "NOOPT", "RMODE(ANY)"]
-          }
-        ]
-      }
-    ]
-  }
-]
-```
-
-Les accolades `{}` contiennent un **objet** (ensemble de clés/valeurs).
-
-Les crochets `[]` contiennent un **tableau** (liste ordonnée d'éléments).
-
-On peut imbriquer des objets dans des objets et des tableaux dans des tableaux.
-
----
-
-### 8.2 Qu'est-ce que `jq` ?
-
-`jq` est un outil en ligne de commande.
-
-Il lit un fichier JSON et le transforme selon un **filtre**.
-
-Un filtre est un programme jq. Il est écrit entre apostrophes `'...'`.
-
-**Analogie :** `jq` est à JSON ce que `grep` ou `awk` est au texte brut.
-
-**Syntaxe de base :**
-
-```bash
-jq 'FILTRE' fichier.json
-```
-
----
-
-### 8.3 Premier contact
-
-**Afficher le fichier entier (formaté et coloré) :**
-
-```bash
-jq '.' datas/vlm.json
-```
-
-Le filtre `.` (un simple point) signifie "retourne la valeur courante telle quelle".
-
-Sans `jq`, le JSON est stocké sur une seule ligne illisible.
-
-`jq '.'` le formate proprement avec indentation et couleurs.
-
----
-
-### 8.4 L'option `-r` (raw output)
-
-Par défaut, `jq` affiche les chaînes de caractères **avec des guillemets** :
-
-```bash
-jq '.[0].Loadlib' datas/vlm.json
-# → "MY.LOAD.LIB"   ← les guillemets sont là
-```
-
-Avec l'option `-r`, les guillemets sont supprimés :
-
-```bash
-jq -r '.[0].Loadlib' datas/vlm.json
-# → MY.LOAD.LIB     ← sans guillemets
-```
-
-Dans un fichier CSV, on ne veut pas de guillemets dans les valeurs.
-
-Ce script utilise toujours `-r`.
-
----
-
-### 8.5 Accéder à un champ : `.nomDuChamp`
-
-`.nomDuChamp` lit la valeur associée à une clé dans un objet.
-
-```bash
-# Loadlib du premier élément du tableau
-jq -r '.[0].Loadlib' datas/vlm.json
-# → MY.LOAD.LIB
-
-# Nombre de membres du premier élément
-jq '.[0].MemberCount' datas/vlm.json
-# → 2
-```
-
-On peut enchaîner les accès pour descendre dans la hiérarchie :
-
-```bash
-# Nom du premier module de la première loadlib
-jq -r '.[0].Loadmods[0].Name' datas/vlm.json
-# → MYPGM
-```
-
-Si le champ n'existe pas, `jq` retourne `null`.
-
----
-
-### 8.6 Parcourir un tableau : `.[]`
-
-`.[]` itère sur **chaque élément** d'un tableau.
-
-`jq` produit un résultat par élément.
-
-```bash
-# Nom de toutes les loadlibs
-jq -r '.[].Loadlib' datas/vlm.json
-# → MY.LOAD.LIB
-#    OTHER.LIB
-#    ...
-```
-
-On peut enchaîner les itérations pour descendre dans plusieurs niveaux :
-
-```bash
-# Noms de tous les modules (toutes loadlibs confondues)
-jq -r '.[].Loadmods[].Name' datas/vlm.json
-```
-
----
-
-### 8.7 Le pipe `|`
-
-Le `|` (pipe jq) passe le résultat de gauche vers le filtre de droite.
-
-C'est le même concept que le pipe Unix `|` dans un terminal.
-
-```bash
-# Ces deux commandes donnent le même résultat
-jq -r '.[].Loadlib' datas/vlm.json
-jq -r '.[] | .Loadlib' datas/vlm.json
-```
-
-Le pipe est utile pour les filtres complexes car il améliore la lisibilité.
-
-**Analogie Python :**
-
-```python
-for lib in data:                    # .[]
-    for lm in lib["Loadmods"]:      # | .Loadmods[]
-        print(lm["Name"])           # | .Name
-```
-
-**Équivalent jq :**
-
-```bash
-jq -r '.[] | .Loadmods[] | .Name' datas/vlm.json
-```
-
----
-
-### 8.8 Filtrer avec `select(condition)`
-
-`select(condition)` ne laisse passer que les éléments qui satisfont la condition.
-
-Les autres sont silencieusement ignorés.
-
-```bash
-# Modules liés à partir du 2025/01/01
-jq -r '.[] | .Loadmods[] | select(.Linkedon >= "2025/01/01") | .Name' \
-   datas/vlm.json
-```
-
-**Opérateurs de comparaison :**
-
-| Opérateur | Signification | Exemple |
-|---|---|---|
-| `==` | Égal à | `select(.Name == "MYPGM")` |
-| `!=` | Différent de | `select(.Name != "CEEUOPT")` |
-| `>=` | Supérieur ou égal | `select(.Linkedon >= "2025/01/01")` |
-| `>` | Strictement supérieur | `select(.MemberCount > 0)` |
-| `<=` | Inférieur ou égal | `select(.MemberCount <= 10)` |
-| `<` | Strictement inférieur | `select(.MemberCount < 5)` |
-
-**Opérateurs logiques :**
-
-| Opérateur | Signification | Exemple |
-|---|---|---|
-| `and` | Les deux conditions sont vraies | `select(.CICS == true and .DB2 == true)` |
-| `or` | Au moins une condition est vraie | `select(.CICS == true or .WMQ == true)` |
-| `not` | Inverse la condition | `select(.ThreadSafe == true \| not)` |
-
-**Exemple :** modules CICS liés après 2025/01/01 :
-
-```bash
-jq -r '
-  .[] | .Loadmods[] as $lm
-  | $lm.CSECTs[]
-  | select($lm.Linkedon >= "2025/01/01" and .CICS == true)
-  | .Name
-' datas/vlm.json
-```
-
----
-
-### 8.9 Stocker une valeur : `expression as $variable`
-
-Quand on itère dans un tableau, le "contexte courant" change.
-
-Après `.Loadmods[]`, on est dans un module. La loadlib n'est plus accessible directement.
-
-`expression as $variable` sauvegarde une valeur pour la réutiliser plus tard.
-
-Les variables jq commencent toujours par `$`.
-
-```bash
-jq -r '
-  .[]
-  | .Loadlib as $lib        # on sauvegarde la loadlib
-  | .Loadmods[] as $lm      # on descend dans les modules
-  | "\($lib) — \($lm.Name)" # on peut encore utiliser $lib ici
-' datas/vlm.json
-# → MY.LOAD.LIB — MYPGM
-#    MY.LOAD.LIB — OTHERPGM
-#    ...
-```
-
-Sans `as $lib`, la valeur de `Loadlib` serait perdue dès qu'on entre dans `.Loadmods[]`.
-
-La variable reste disponible à tous les niveaux d'imbrication qui suivent sa déclaration.
-
----
-
-### 8.10 Valeur par défaut si absent : `expression // valeur`
-
-En JSON, `null` signifie "absent" ou "pas de valeur".
-
-Si un champ n'existe pas dans un objet, jq retourne `null`.
-
-L'opérateur `//` fournit une valeur de remplacement si l'expression est `null`.
-
-```bash
-# Si Identify est null ou absent → afficher "" à la place
-jq -r '.[0].Loadmods[0].CSECTs[0] | (.Identify // "")' datas/vlm.json
-# → DY012345678  si présent
-# → ""           si absent ou null
-```
-
-**Analogie Python :**
-
-```python
-value = csect.get("Identify") or ""
-```
-
-Dans ce script, `// ""` est utilisé pour le champ `Identify`.
-
-Ce champ n'est pas toujours présent dans le JSON.
-
-Sans `// ""`, le mot `null` apparaîtrait littéralement dans le CSV.
-
----
-
-### 8.11 Trier un tableau : `sort`
-
-`sort` trie les éléments d'un tableau dans l'ordre alphabétique.
-
-```bash
-# Options de compilation, triées
-jq '.[0].Loadmods[0].CSECTs[0].Copt | sort' datas/vlm.json
-# → ["NOOPT", "RENT", "RMODE(ANY)"]
-```
-
-Le tri est stable et reproductible. Le résultat est identique à chaque exécution.
-
----
-
-### 8.12 Assembler un tableau en chaîne : `join(séparateur)`
-
-`join(sep)` concatène tous les éléments d'un tableau avec un séparateur.
-
-```bash
-jq -r '.[0].Loadmods[0].CSECTs[0].Copt | sort | join(";")' datas/vlm.json
-# → NOOPT;RENT;RMODE(ANY)
-```
-
-En combinant `sort` et `join(";")`, chaque option devient une colonne CSV.
-
----
-
-### 8.13 Compter les éléments : `length`
-
-`length` retourne le nombre d'éléments d'un tableau.
-
-```bash
-jq '.[0].Loadmods[0].CSECTs[0].Copt | length' datas/vlm.json
-# → 3
-```
-
-Dans ce script, `length > 0` filtre les modules sans option de compilation.
-
-Explication du filtre complet utilisé dans le script :
-
-```jq
-select((($csect.Copt // []) | length) > 0)
-```
-
-Décomposé étape par étape :
-
-| Étape | Expression | Résultat si Copt = `["RENT","NOOPT"]` | Résultat si Copt absent |
-|---|---|---|---|
-| 1 | `$csect.Copt // []` | `["RENT","NOOPT"]` | `[]` |
-| 2 | `\| length` | `2` | `0` |
-| 3 | `> 0` | `true` → élément conservé | `false` → élément ignoré |
-
----
-
-### 8.14 Interpolation de chaîne : `"\(expression)"`
-
-Dans une chaîne jq, `\(expression)` insère la valeur d'une expression.
-
-C'est l'équivalent des f-strings de Python : `f"{variable}"`.
-
-```bash
-jq -r '.[] | "Loadlib: \(.Loadlib), membres: \(.MemberCount)"' datas/vlm.json
-# → Loadlib: MY.LOAD.LIB, membres: 2
-```
-
-Plusieurs expressions peuvent être concaténées avec `+` :
-
-```bash
-jq -r '.[] | "\(.Loadlib);" + "\(.MemberCount)"' datas/vlm.json
-# → MY.LOAD.LIB;2
-```
-
----
-
-### 8.15 Injecter une variable shell : `--arg nom valeur`
-
-Il ne faut **pas** insérer directement une variable shell dans un filtre jq.
-
-**Méthode dangereuse — à ne jamais faire :**
-
-```bash
-date="2025/01/01"
-# ← risqué : si $date contient des " ou des \, le filtre est cassé
-jq ".[] | select(.Linkedon >= \"$date\")" datas/vlm.json
-```
-
-**Méthode sûre : `--arg nom valeur`**
-
-```bash
-date="2025/01/01"
-jq --arg min_date "$date" \
-   '.[] | select(.Linkedon >= $min_date)' \
-   datas/vlm.json
-```
-
-`--arg min_date "$date"` crée une variable jq `$min_date`.
-
-La valeur est transmise proprement, sans être interprétée comme du code jq.
-
-C'est l'équivalent des paramètres préparés en SQL pour éviter les injections.
-
----
-
-### 8.16 Récapitulatif des opérateurs jq
-
-| Opérateur | Exemple | Signification |
-|---|---|---|
-| `.` | `.` | Valeur courante (retourne tout) |
-| `.champ` | `.Loadlib` | Accès à un champ d'objet |
-| `.[]` | `.Loadmods[]` | Itère sur chaque élément d'un tableau |
-| `\|` | `.[] \| .Name` | Passe le résultat au filtre suivant |
-| `select(c)` | `select(.Linkedon >= "2025/01/01")` | Filtre : garde si condition vraie |
-| `expr as $v` | `.Loadlib as $lib` | Sauvegarde une valeur dans une variable |
-| `//` | `.Identify // ""` | Valeur par défaut si null ou absent |
-| `sort` | `.Copt \| sort` | Trie un tableau alphabétiquement |
-| `join(s)` | `.Copt \| join(";")` | Concatène un tableau avec un séparateur |
-| `length` | `.Copt \| length` | Nombre d'éléments d'un tableau |
-| `\(expr)` | `"\(.Name);"` | Insère une valeur dans une chaîne |
-| `--arg n v` | `--arg d "$DATE"` | Injecte une variable shell dans jq |
-
----
-
-### 8.17 Décryptage du filtre du mode global
-
-Voici le filtre jq complet du mode global, commenté ligne par ligne :
-
-```jq
-.[]
-| .Loadlib as $lib
-| .Loadmods[] as $lm
-| select($min_date == "" or ($lm.Linkedon >= $min_date))
-| $lm.CSECTs[] as $csect
-| "\($lib);"
-+ "\($lm.Name);"
-+ "\($lm.Linkedon);"
-+ "\($csect.Name);"
-+ "\($csect.Compiler1);"
-+ "ThreadSafe=\($csect.ThreadSafe);"
-+ "CICS=\($csect.CICS);"
-+ "DB2=\($csect.DB2);"
-+ "WMQ=\($csect.WMQ);"
-+ "\($csect.Identify // "")"
-```
-
-| Ligne | Ce que ça fait |
-|---|---|
-| `.[]` | Pour chaque loadlib dans le tableau racine |
-| `\| .Loadlib as $lib` | Sauvegarder le nom de la loadlib dans `$lib` |
-| `\| .Loadmods[] as $lm` | Pour chaque module, sauvegarder dans `$lm` |
-| `\| select(...)` | Ignorer les modules trop anciens si `-d` est actif |
-| `\| $lm.CSECTs[] as $csect` | Pour chaque CSECT, sauvegarder dans `$csect` |
-| `\| "\($lib);"` | Commencer la ligne CSV avec la loadlib |
-| `+ "\($lm.Name);"` | Ajouter le nom du module |
-| `+ "\($lm.Linkedon);"` | Ajouter la date de link-edit |
-| `+ "\($csect.Name);"` | Ajouter le nom du CSECT |
-| `+ "\($csect.Compiler1);"` | Ajouter le compilateur |
-| `+ "ThreadSafe=\(...)"` | Ajouter les indicateurs middleware |
-| `+ "\($csect.Identify // "")"` | Ajouter l'identifiant (vide si absent) |
-
-**Pourquoi `$lib` et pas `.Loadlib` à la fin ?**
-
-À la ligne `| $lm.CSECTs[] as $csect`, le contexte courant est un CSECT.
-
-`.Loadlib` ne correspond plus à rien dans un CSECT.
-
-Mais `$lib` a été sauvegardé avant de descendre dans la hiérarchie. Il reste accessible.
+Il couvre depuis zéro : JSON, les filtres, `.[]`, `|`, `select`, `as $var`,
+`//`, `sort`, `join`, `length`, `--arg`, et le décryptage du filtre complet
+du mode global.
 
 ---
 
@@ -734,47 +455,35 @@ Mais `$lib` a été sauvegardé avant de descendre dans la hiérarchie. Il reste
 
 **`Error: input file 'vlm.json' not found.`**
 
-Le fichier JSON n'existe pas au chemin indiqué.
-
 ```bash
-# Vérifier que le fichier existe
-ls -la datas/vlm.json
-
-# Relancer avec le bon chemin
-bash script/export_csv.sh -i datas/vlm.json -o datas/output.csv -g
+ls -la datas/vlm.json   # vérifier que le fichier existe
 ```
 
 ---
 
 **`Error: jq is not installed (or not in PATH).`**
 
-`jq` n'est pas installé sur ce système.
-
 ```bash
 sudo apt install -y jq
-jq --version  # vérifier
+jq --version
 ```
 
 ---
 
 **`Error: date format must be yyyy/mm/dd`**
 
-La date est dans un format incorrect.
-
 ```bash
 # Correct
 bash script/export_csv.sh ... -d 2025/06/01
 
 # Incorrect
-bash script/export_csv.sh ... -d 01/06/2025   # ← ordre inversé
-bash script/export_csv.sh ... -d 2025-06-01   # ← tirets non acceptés
+bash script/export_csv.sh ... -d 01/06/2025   # ordre inversé
+bash script/export_csv.sh ... -d 2025-06-01   # tirets non acceptés
 ```
 
 ---
 
 **`Error: unknown option '-x'`**
-
-L'option n'est pas reconnue.
 
 ```bash
 bash script/export_csv.sh --help
@@ -785,10 +494,9 @@ bash script/export_csv.sh --help
 **Le fichier CSV est vide**
 
 Si aucune ligne ne correspond aux critères, le fichier est créé mais vide.
-
-Avec un filtre de date `-d`, vérifiez que la date choisie n'est pas trop récente :
+Avec un filtre de date `-d`, vérifiez que la date n'est pas trop récente :
 
 ```bash
-# Voir les dates présentes dans le JSON
+# Voir toutes les dates présentes dans le JSON
 jq -r '.[].Loadmods[].Linkedon' datas/vlm.json | sort -u
 ```

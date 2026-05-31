@@ -214,28 +214,13 @@ parse_args() {
                     exit 1
                 fi
 
-                # Extraction des composantes de la date via les opérations de
-                # découpe de chaîne intégrées à Bash. Pour la date "2025/06/15" :
-                #
-                # ${2%%/*} : supprime le suffixe LE PLUS LONG correspondant à /*
-                #   (tout ce qui commence par / jusqu'à la fin).
-                #   "2025/06/15" → "2025"  (ce qui est avant la 1ère /)
-                #
-                # ${2#*/}  : supprime le préfixe LE PLUS COURT correspondant à */
-                #   (tout jusqu'à la 1ère / incluse).
-                #   "2025/06/15" → "06/15"
-                #   Puis ${var%%/*} sur "06/15" → "06"  (mois)
-                #
-                # ${2##*/} : supprime le préfixe LE PLUS LONG correspondant à */
-                #   (tout jusqu'à la DERNIÈRE / incluse).
-                #   "2025/06/15" → "15"  (jour)
-                #
-                # Ces opérations évitent d'appeler des outils externes comme
-                # cut ou awk pour un simple découpage de chaîne.
-                year="${2%%/*}"
-                month="${2#*/}"
-                month="${month%%/*}"
-                day="${2##*/}"
+                # Découpe la date "yyyy/mm/dd" en trois variables.
+                # IFS='/' : positionne temporairement le séparateur de champs sur '/'.
+                # read -r : assigne chaque champ à year, month, day (-r désactive
+                #           l'interprétation des backslashs, bonne pratique systématique).
+                # <<< "$2" : here-string — transmet $2 directement sur l'entrée
+                #            standard de read, sans créer de sous-processus.
+                IFS='/' read -r year month day <<< "$2"
 
                 # Validation numérique du mois (01–12) et du jour (01–31).
                 # (( expression )) : évalue une expression arithmétique entière.

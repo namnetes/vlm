@@ -2,149 +2,104 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+## Project
 
-VLM is a data processing pipeline that transforms raw IBM File Manager reports
-(View Load Module function on z/OS) into queryable JSON and CSV files.
-All source code and documentation is written in **French**.
+ETL pipeline that transforms IBM File Manager VLM (View Load Module) XML reports into structured JSON and CSV. VLM reports describe the load modules of an IBM z/OS loadlib.
 
-**Domain vocabulary:**
-- **Loadlib** — z/OS load library (PDS/PDSE containing Load Modules)
-- **Loadmod** — load module (executable module inside a loadlib)
-- **CSECT** — Control SECTion (a compiled unit within a loadmod)
-- **COPT** — Compilation OPTions (compiler flags: COBOL, C++, PL/I)
-- **Identify** — package identifier in the form `AppCode/Hash/PackageCode`
-- **LEINFO** — Language Environment metadata embedded inside COPT strings
+**Domain glossary (used throughout the codebase):**
 
-## Development Commands
+| Term | Meaning |
+|------|---------|
+| VLM | View Load Module — IBM File Manager function that analyses z/OS load libraries |
+| Loadlib | Load Library — PDS/PDSE containing executable load modules |
+| Loadmod | Load Module — an executable program inside a loadlib |
+| CSECT | Control SECTion — a compiled unit inside a load module |
+| COPT | Compilation OPTions — IBM compiler flags (COBOL, C/C++, PL/I) |
+| LEINFO | Pseudo-COPT token containing LE internal metadata — not a real compiler option |
+
+## Commands
 
 ```bash
-uv sync                        # install dependencies
-uv run pytest                  # run all tests
-uv run pytest tests/test_foo.py::test_bar  # run a single test
-uv run ruff check . --fix      # lint and auto-fix
+uv sync                           # install / update dependencies
+
+make run                          # run the full pipeline (all 4 steps)
+make run STEPS=2-4                # run steps 2 to 4 only
+make clean                        # delete caches + all pipeline-produced files
+                                  # (never touches datas/vlm.xml or datas/copt/ dir)
+
+make docs                         # serve MkDocs in foreground (port auto-detected 8000–8050)
+make docs-start                   # serve in background (.mkdocs.pid)
+make docs-stop                    # stop background server
+make docs-build                   # compile to site/
+
+uv run pytest                     # all tests with coverage
+uv run pytest tests/test_foo.py::test_bar -v   # single test
+uv run ruff check src/ tests/     # lint
+uv run ruff check src/ tests/ --fix            # lint + auto-fix
+uv run mypy src/                  # type check
 ```
 
-## Pipeline Architecture
+## Architecture
 
-Four sequential stages, each a standalone Python script in `src/`:
+### Pipeline — 4 steps in sequence
 
-| Stage | Script | Input → Output |
-|-------|--------|----------------|
-| 1 | `clean_report.py` | Raw XML (iso8859-1, ASA chars) → Clean UTF-8 XML |
-| 2 | `reformat_copt.py` | Clean XML → XML with normalized COPT strings |
-| 3 | `build_json.py` | Normalized XML → Hierarchical JSON |
-| 4 | `extract_copt.py` | JSON → CSV + per-loadlib text files |
-
-**Orchestrator:** `src/pipeline.py` runs all stages in sequence.
-Supports partial runs: `uv run src/pipeline.py 2-4` or
-`uv run src/pipeline.py extract`.
-
-**Query tool:** `script/export_csv.sh` — Bash script using `jq` and `awk`
-that queries the JSON output. Three modes: `-g` (global), `-p` (options),
-`-c` (compiler). Requires `jq` installed. Optional `-d yyyy/mm/dd` date filter.
-
-**Shared utilities:** `src/utils.py` loads `config.toml` (logging, file paths)
-and sets up a rotating file handler (`pipeline.log`, 2 GB max, 5 backups).
-
-### JSON structure (Stage 3 output)
+`src/pipeline.py` orchestrates the chain via `subprocess.run(sys.executable, ...)`.
+Any non-zero exit code stops the pipeline immediately.
 
 ```
-[ { Loadlib, MemberCount,
-    Loadmods: [ { Name,
-                  CSECTs: [ { Name, Compiler, Linkedon, Identify,
-                              ThreadSafe, CICS, DB2, WMQ,  ← derived booleans
-                              Copt: ["OPT1", "OPT2", ...] } ] } ] } ]
+datas/vlm.xml  (ISO-8859-1, raw mainframe input — never deleted by clean)
+  │
+  ▼  [1] clean_report.py    → datas/clean_vlm.xml
+  ▼  [2] reformat_copt.py   → datas/clean_vlm_copt.xml  +  datas/copt_ignored.txt
+  ▼  [3] build_json.py      → datas/vlm.json
+  ▼  [4] extract_copt.py    → datas/copt/copt.csv  +  datas/copt/loadlibs/**/*.txt
 ```
 
-`ThreadSafe`, `CICS`, `DB2`, `WMQ` are derived by `build_json.py` from COPT
-content — they do not appear in the raw XML.
+Configurable paths (`vlm_input`, `final_json`, `copt_csv`) live in `config.toml [settings]`.
+Intermediate files (`clean_vlm.xml`, `clean_vlm_copt.xml`, `copt_ignored.txt`) are hard-coded in `pipeline.py`.
 
-## Package Manager
+### Per-step responsibilities
 
-- Always use `uv`. Never suggest `pip` or `poetry`.
-- Setup: `uv sync`
-- Add dependency: `uv add <package>`
-- Run script: `uv run <script.py>`
+**`clean_report.py`** — strips ASA printer-control characters and noise lines from the raw report; injects `loadlib` and `memberCount` attributes into `<vlm>` tags; exits with code 1 on business error `FMNBF427`.
 
-## Python Standards
+**`reformat_copt.py`** — normalises `Copt@Val` so a plain `split()` later isolates each option. Core logic: paren-depth-aware tokeniser (spaces inside `OPTION(A,B)` do not split the token). LEINFO handling has three modes: `placeholder` (default — replaces with `LEINFO=(N)` and saves originals to `copt_ignored.txt`), `remove`, `keep`.
 
-- Python version: **3.12+**.
-- Line length: **88 characters** maximum (Ruff/Black style).
-- Type hints required on **all** function and method signatures (parameters
-  and return type).
-- f-strings for all string formatting; no `%` formatting, no `.format()`.
-- `pathlib.Path` for all file-system paths; never `os.path`.
-- `logging` module for all output in production code; `print()` only in
-  one-off scripts or CLI entry points.
-- Specific exceptions only — never bare `except:` or `except Exception:`.
+**`build_json.py`** — parses the XML tree (Loadlib → Loadmod → CSECT) into a JSON list. Derives boolean flags (`ThreadSafe`, `CICS`, `DB2`, `WMQ`) from CSECT name patterns. Extracts the `Identify` package code (third `/`-delimited segment) after regex validation; invalid or absent → `null`.
 
-### Naming conventions
+**`extract_copt.py`** — streams JSON rows into `copt.csv` (one line per CSECT that has COPT options). **Refuses to overwrite an existing output file** — `pipeline.py` explicitly deletes it before step 4. Also writes per-CSECT `.txt` files under `datas/copt/loadlibs/<loadlib>/`.
 
-| Element                 | Convention            | Example                         |
-| ----------------------- | --------------------- | ------------------------------- |
-| Variable / function     | `snake_case`          | `record_count`, `read_csv_file` |
-| Class                   | `PascalCase`          | `CsvReader`, `SortKey`          |
-| Constant (module-level) | `UPPER_SNAKE_CASE`    | `DEFAULT_DELIMITER`             |
-| Private helper          | `_leading_underscore` | `_parse_header`                 |
+### Shared utilities — `src/utils.py`
 
-### Documentation — accessibility first
+Single entry point for config and logging used by every script:
+- `load_config()` — reads `config.toml` via stdlib `tomllib`; exits 2 if missing, 3 if invalid TOML
+- `setup_logging(config, name)` — attaches a `RotatingFileHandler` (→ `datas/pipeline.log`) and a stderr `StreamHandler` (WARNING+ only). Logger names match script names: `clean_report`, `reformat_copt`, `build_json`, `extract_copt`, `pipeline`.
 
-**Goal: every source file must be readable by a beginner with no prior
-context.** Assume the reader knows Python basics but nothing about the
-mainframe domain.
+### Alternative query interface — `script/export_csv.sh`
 
-#### Module docstring (mandatory on every `.py` file)
+Uses `jq` to query `datas/vlm.json` directly, bypassing the Python pipeline. Three modes (`-g` global / `-p` options / `-c` compiler) with an optional date filter (`-d yyyy/mm/dd`). Requires `jq` in PATH.
 
-```python
-"""
-Short one-line summary of what this module does.
+### Debug utility — `src/inspect_copt.py`
 
-Longer description: purpose, inputs, outputs, key limitations.
-
-Example:
-    uv run script.py --input data/customers.csv
-"""
+Prints every `Copt@Val` from any XML file. Useful to compare before/after `reformat_copt.py`:
+```bash
+uv run python src/inspect_copt.py -f datas/clean_vlm.xml
+uv run python src/inspect_copt.py -f datas/clean_vlm_copt.xml
 ```
 
-#### Function / method docstring — Google Style
+## Key invariants
 
-Mandatory on all public functions; strongly recommended on private helpers
-> 5 lines.
+- `sys.executable` is used for all subprocess calls — ensures the same virtualenv is active in every step.
+- `extract_copt.py` refuses to overwrite its CSV output; `pipeline.py` handles deletion before step 4.
+- Steps 1–3 overwrite their outputs silently on re-run.
+- COPT tokenisation is paren-depth-aware — spaces inside parentheses never split a token.
+- `LEINFO` mode defaults to `placeholder`; the pipeline does not pass `--leinfo-mode` explicitly.
 
-```python
-def compute_balance(debit: Decimal, credit: Decimal) -> Decimal:
-    """Calculate the net balance after applying debit and credit.
+## Exit codes (consistent across all scripts)
 
-    Args:
-        debit: Total amount debited (must be >= 0).
-        credit: Total amount credited (must be >= 0).
-
-    Returns:
-        Net balance as a Decimal: credit - debit.
-
-    Raises:
-        ValueError: If debit or credit is negative.
-    """
-```
-
-Rules: `Args` required if any parameter exists. `Returns` required unless
-`None`. `Raises` required for every raised exception. Plain language only.
-
-#### Inline comments
-
-Explain *why*, never *what*. Complete sentences, capital first letter,
-max 2 lines — otherwise move to the docstring.
-
-## Shell / Bash Standards
-
-- Line length: **80 characters** maximum.
-- Always start scripts with `set -euo pipefail`.
-- Use `\` for line continuation to respect the 80-char limit.
-
-## Data Handling (FR locale)
-
-- CSV delimiter: `;` (semicolon).
-- Encoding: UTF-8.
-- Always specify `sep=';'` or `delimiter=';'` in Pandas/Polars IO calls.
-- Use `.` as decimal separator for raw data.
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Business error (FMNBF427 in raw VLM report) |
+| `2` | File / directory not found or not writable |
+| `3` | XML or JSON parse error |
+| `10` | Unexpected I/O error |

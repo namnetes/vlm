@@ -62,6 +62,16 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.snippets
 
+plugins:
+  - search
+  - minify:
+      minify_html: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - awesome-pages
+  - include-markdown
+  - macros
+
 extra_css:
   - stylesheets/extra.css
 
@@ -77,6 +87,10 @@ nav:
       - build_json.py: build_json/business_rules.md
       - extract_copt.py: extract_copt/business_rules.md
       - inspect_copt.py: inspect_copt/business_rules.md
-      - export_csv.sh: export_csv/guide.md
-  - MkDocs:
-      - Guide: mkdocs/guide.md
+      - export_csv.sh:
+          - Guide: export_csv/guide.md
+          - Guide jq: export_csv/jq.md
+  - Développement:
+      - Installation: dev/installation.md
+      - Tests: dev/tests.md
+      - Qualité du code: dev/qualite.md

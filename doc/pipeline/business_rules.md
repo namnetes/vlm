@@ -21,15 +21,15 @@
 
 ## 1. Contexte et glossaire
 
-| Terme            | Définition                                                                                                                   |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**          | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport brut produit (vlm.xml) est la matière première de toute la chaîne.             |
-| **Pipeline**     | Enchaînement ordonné d'étapes de traitement, chaque étape consommant la sortie de la précédente.                            |
-| **Orchestrateur**| Script dont le seul rôle est de lancer d'autres scripts dans le bon ordre et de vérifier leur succès.                       |
-| **subprocess**   | Module Python standard permettant de lancer un programme externe (ici un autre script Python) depuis un script Python.      |
-| **code de retour**| Entier renvoyé par un programme à son processus parent à la fin de son exécution : `0` = succès, tout autre valeur = erreur. |
-| **config.toml**  | Fichier de configuration TOML à la racine du projet. Contient les chemins des fichiers d'entrée/sortie utilisateur.         |
-| **LEINFO**       | Pseudo-option de compilation IBM LE — mode `placeholder` utilisé par défaut dans le pipeline.                               |
+| Terme              | Définition                                                                                                                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VLM**            | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport produit (vlm.xml) est la matière première de toute la chaîne. |
+| **Pipeline**       | Enchaînement ordonné d'étapes de traitement, chaque étape consommant la sortie de la précédente.                                                                                                     |
+| **Orchestrateur**  | Script dont le seul rôle est de lancer d'autres scripts dans le bon ordre et de vérifier leur succès.                                                                                                |
+| **subprocess**     | Module Python standard permettant de lancer un programme externe (ici un autre script Python) depuis un script Python.                                                                               |
+| **code de retour** | Entier renvoyé par un programme à son processus parent à la fin de son exécution : `0` = succès, tout autre valeur = erreur.                                                                         |
+| **config.toml**    | Fichier de configuration TOML à la racine du projet. Contient les chemins des fichiers d'entrée/sortie utilisateur.                                                                                  |
+| **LEINFO**         | Pseudo-option de compilation IBM LE — mode `placeholder` utilisé par défaut dans le pipeline.                                                                                                        |
 
 ---
 
@@ -76,11 +76,11 @@ Afficher le bilan (chemins des fichiers produits)
 Le pipeline lit trois chemins dans la section `[settings]` de `config.toml`.
 Ces chemins sont **relatifs à la racine du projet**.
 
-| Clé TOML      | Description                                  | Exemple de valeur        |
-| ------------- | -------------------------------------------- | ------------------------ |
-| `vlm_input`   | Rapport VLM brut en entrée                   | `"datas/vlm.xml"`        |
-| `final_json`  | Fichier JSON final produit par `build_json.py`| `"datas/vlm.json"`       |
-| `copt_csv`    | Fichier CSV récapitulatif produit par `extract_copt.py` | `"datas/copt/copt.csv"` |
+| Clé TOML     | Description                                             | Exemple de valeur       |
+| ------------ | ------------------------------------------------------- | ----------------------- |
+| `vlm_input`  | Rapport VLM en entrée                                   | `"datas/vlm.xml"`       |
+| `final_json` | Fichier JSON final produit par `build_json.py`          | `"datas/vlm.json"`      |
+| `copt_csv`   | Fichier CSV récapitulatif produit par `extract_copt.py` | `"datas/copt/copt.csv"` |
 
 ```toml
 # config.toml (section settings)
@@ -111,19 +111,19 @@ COPT_CSV   = PROJECT_ROOT / _settings["copt_csv"]
 
 ### 4.1 Fichier d'entrée (configurable)
 
-| Fichier      | Source         | Description                                                  |
-| ------------ | -------------- | ------------------------------------------------------------ |
-| `vlm_input`  | `config.toml`  | Rapport VLM brut émis par IBM File Manager (ISO-8859-1).     |
+| Fichier     | Source        | Description                                           |
+| ----------- | ------------- | ----------------------------------------------------- |
+| `vlm_input` | `config.toml` | Rapport VLM généré par IBM File Manager (ISO-8859-1). |
 
 ### 4.2 Fichiers intermédiaires (câblés dans le code)
 
 Ces chemins ne sont pas exposés dans `config.toml` car ils sont internes au
 pipeline et n'ont pas vocation à être modifiés par l'utilisateur.
 
-| Fichier              | Produit par          | Consommé par          |
-| -------------------- | -------------------- | --------------------- |
-| `datas/clean_vlm.xml` | `clean_report.py`   | `reformat_copt.py`    |
-| `datas/clean_vlm_copt.xml` | `reformat_copt.py` | `build_json.py`    |
+| Fichier                    | Produit par        | Consommé par             |
+| -------------------------- | ------------------ | ------------------------ |
+| `datas/clean_vlm.xml`      | `clean_report.py`  | `reformat_copt.py`       |
+| `datas/clean_vlm_copt.xml` | `reformat_copt.py` | `build_json.py`          |
 | `datas/copt_ignored.txt`   | `reformat_copt.py` | _(consultation humaine)_ |
 
 ```python
@@ -135,10 +135,10 @@ COPT_IGNORED = PROJECT_ROOT / "datas/copt_ignored.txt"
 
 ### 4.3 Fichiers de sortie (configurables)
 
-| Fichier       | Produit par          | Description                                              |
-| ------------- | -------------------- | -------------------------------------------------------- |
-| `final_json`  | `build_json.py`      | JSON structuré exploitable par `jq` ou `export_csv.sh`. |
-| `copt_csv`    | `extract_copt.py`    | CSV récapitulatif des options COPT par CSECT.            |
+| Fichier      | Produit par       | Description                                             |
+| ------------ | ----------------- | ------------------------------------------------------- |
+| `final_json` | `build_json.py`   | JSON structuré exploitable par `jq` ou `export_csv.sh`. |
+| `copt_csv`   | `extract_copt.py` | CSV récapitulatif des options COPT par CSECT.           |
 
 ---
 
@@ -148,7 +148,7 @@ COPT_IGNORED = PROJECT_ROOT / "datas/copt_ignored.txt"
 
 **Règle :** chaque étape est lancée avec `subprocess.run()`. Si le code de
 retour est différent de `0`, le pipeline s'arrête immédiatement et retourne
-ce même code d'erreur à son processus parent (terminal ou scheduler).
+ce même code d'erreur à son processus parent.
 
 > **Pourquoi s'arrêter à la première erreur ?** Les étapes sont dépendantes :
 > `reformat_copt.py` ne peut pas fonctionner si `clean_report.py` n'a pas
@@ -211,12 +211,12 @@ if COPT_CSV.exists():
 
 Le tableau ci-dessous récapitule les arguments transmis à chaque étape :
 
-| Étape | Script            | Arguments clés                                              |
-| ----- | ----------------- | ----------------------------------------------------------- |
-| 1     | `clean_report.py` | `-f vlm_input -o clean_vlm.xml -e iso8859-1`               |
-| 2     | `reformat_copt.py`| `-f clean_vlm.xml -o clean_vlm_copt.xml -e utf-8 --ignored-file copt_ignored.txt` |
-| 3     | `build_json.py`   | `-f clean_vlm_copt.xml -o final_json -e utf-8`             |
-| 4     | `extract_copt.py` | `-f final_json -o copt_csv`                                |
+| Étape | Script             | Arguments clés                                                                    |
+| ----- | ------------------ | --------------------------------------------------------------------------------- |
+| 1     | `clean_report.py`  | `-f vlm_input -o clean_vlm.xml -e iso8859-1`                                      |
+| 2     | `reformat_copt.py` | `-f clean_vlm.xml -o clean_vlm_copt.xml -e utf-8 --ignored-file copt_ignored.txt` |
+| 3     | `build_json.py`    | `-f clean_vlm_copt.xml -o final_json -e utf-8`                                    |
+| 4     | `extract_copt.py`  | `-f final_json -o copt_csv`                                                       |
 
 > **Note :** `reformat_copt.py` est appelé sans `--leinfo-mode` ; le mode par
 > défaut `placeholder` s'applique (voir `reformat_copt/business_rules.md` §6.3).
@@ -252,6 +252,7 @@ python src/pipeline.py copt-json   # Étapes 2 et 3 (par alias)
 > (produit par l'étape 2).
 
 **L'affichage s'adapte** au nombre d'étapes sélectionnées :
+
 ```
 [1/2] Conversion XML → JSON...   ← sur 2 étapes au lieu de 4
 [2/2] Extraction des options COPT par CSECT...
@@ -296,13 +297,13 @@ d'erreur explicite.
 
 Le pipeline propage tel quel le code de retour du sous-script en échec :
 
-| Code renvoyé | Signification probable (dépend du script en échec)                       |
-| ------------ | ------------------------------------------------------------------------- |
-| `0`          | Toutes les étapes ont réussi.                                             |
-| `1`          | Erreur métier détectée par `clean_report.py` (message `FMNBF427`).       |
-| `2`          | Erreur fichier/répertoire dans l'une des étapes.                         |
-| `3`          | Erreur de parsing XML ou JSON dans l'une des étapes.                     |
-| `10`         | Erreur E/S (lecture ou écriture) dans l'une des étapes.                  |
+| Code renvoyé | Signification probable (dépend du script en échec)                 |
+| ------------ | ------------------------------------------------------------------ |
+| `0`          | Toutes les étapes ont réussi.                                      |
+| `1`          | Erreur métier détectée par `clean_report.py` (message `FMNBF427`). |
+| `2`          | Erreur fichier/répertoire dans l'une des étapes.                   |
+| `3`          | Erreur de parsing XML ou JSON dans l'une des étapes.               |
+| `10`         | Erreur E/S (lecture ou écriture) dans l'une des étapes.            |
 
 > Le message affiché sur le terminal (`Erreur lors de l'étape N (script.py)`)
 > identifie quelle étape a échoué. Le code exact et le message détaillé sont
@@ -310,10 +311,10 @@ Le pipeline propage tel quel le code de retour du sous-script en échec :
 
 ### 6.3 Tableau récapitulatif
 
-| Code | Signification                                           |
-| ---- | ------------------------------------------------------- |
+| Code | Signification                                             |
+| ---- | --------------------------------------------------------- |
 | `0`  | Succès — les quatre étapes se sont terminées sans erreur. |
-| `≠0` | Échec — code hérité du sous-script défaillant.          |
+| `≠0` | Échec — code hérité du sous-script défaillant.            |
 
 ---
 

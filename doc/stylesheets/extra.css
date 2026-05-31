@@ -1,18 +1,48 @@
-/* Réduit les marges latérales */
+/* Largeur 100% + suppression des marges extérieures */
 .md-grid {
-  max-width: 1800px;
+  max-width: 100%;
+  margin: 0;
 }
 
-/* Élargit la TOC (sidebar droite) sans toucher au menu gauche */
+.md-content {
+  max-width: 100%;
+}
+
+/* Supprime le padding horizontal du conteneur principal
+   (responsable de la marge blanche entre sidebar et bord de page) */
+.md-main__inner {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Material impose aussi un max-width sur le contenu de l'article */
+.md-content__inner {
+  max-width: 100%;
+}
+
+/* Sidebars +35% (base Material: 12.1rem → 16.335rem) */
+:root {
+  --md-sidebar-width: 13.068rem;
+}
+
+.md-sidebar {
+  width: 13.068rem !important;
+}
+
+/* Sidebar droite (TOC) +45% total (16.335rem → 17.9685rem) */
 .md-sidebar--secondary {
-  width: 18rem;
+  width: 20.7537rem !important;
 }
 
-.md-sidebar--secondary .md-sidebar__scrollwrap {
-  width: 18rem;
+/* Material fixe le contenu à 11.5rem via calc(100% - 11.5rem) en padding-right.
+   On écrase ce calc pour que le contenu remplisse vraiment la sidebar. */
+@supports selector(::-webkit-scrollbar) {
+  [dir=ltr] .md-sidebar__inner {
+    padding-right: 0.4rem !important;
+  }
 }
 
-/* Réduit la police de la TOC */
-.md-sidebar--secondary .md-nav__link {
-  font-size: 0.65rem;
+.md-sidebar__inner {
+  padding-right: 0.4rem !important;
 }
+
