@@ -221,7 +221,7 @@ Le tableau ci-dessous récapitule les arguments transmis à chaque étape :
 > **Note :** `reformat_copt.py` est appelé sans `--leinfo-mode` ; le mode par
 > défaut `placeholder` s'applique (voir `reformat_copt/business_rules.md` §6.3).
 
-### 5.6 Exécution partielle (sous-ensemble d'étapes)
+### 5.5 Exécution partielle (sous-ensemble d'étapes)
 
 **Règle :** le pipeline accepte un argument positionnel optionnel pour exécuter
 uniquement certaines étapes. Sans argument, toutes les étapes sont exécutées.
@@ -268,7 +268,7 @@ parse_steps("copt-json")  # → [2, 3]
 
 ---
 
-### 5.5 Pas de parallélisme
+### 5.6 Pas de parallélisme
 
 **Règle :** les étapes sont exécutées **strictement l'une après l'autre**. Aucune
 étape n'est lancée en arrière-plan ou en parallèle.

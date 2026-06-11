@@ -14,7 +14,7 @@
 5. [Filtre de date](#5-filtre-de-date)
 6. [Variable d'environnement VLM_DATA_DIR](#6-variable-denvironnement-vlm_data_dir)
 7. [Format des fichiers de sortie](#7-format-des-fichiers-de-sortie)
-8. [jq — Guide pour débutants](#8-jq--guide-pour-débutants) — voir aussi [Guide jq](jq.md)
+8. [jq — Guide pour débutants](#8-jq--guide-pour-débutants) — voir aussi [Guide jq](jq.md) et [Décryptage des filtres](filtres.md)
 9. [Codes de sortie et dépannage](#9-codes-de-sortie-et-dépannage)
 
 ---
@@ -93,32 +93,19 @@ bash script/export_csv.sh --help
 
 ### 3.3 Via le Makefile
 
-Le Makefile expose une cible `query` avec des valeurs par défaut modifiables :
+Le Makefile expose une cible `query` qui appelle ce script avec des valeurs
+par défaut modifiables :
 
 ```bash
-# Mode global vers datas/export.csv (défauts)
 make query
-
-# Changer le mode
-make query QUERY_MODE=-p
-make query QUERY_MODE=-c
-
-# Changer le fichier de sortie
-make query QUERY_OUTPUT=datas/compilers.csv QUERY_MODE=-c
-
-# Ajouter un filtre de date
-make query QUERY_DATE=2026/01/01
-
-# Tout combiner
-make query QUERY_MODE=-p QUERY_OUTPUT=datas/opts.csv QUERY_DATE=2026/01/01
+make query QUERY_MODE=-p QUERY_DATE=2026/01/01
 ```
 
-| Variable Makefile | Défaut | Description |
-|---|---|---|
-| `QUERY_INPUT` | `datas/vlm.json` | Fichier JSON en entrée |
-| `QUERY_OUTPUT` | `datas/export.csv` | Fichier CSV en sortie |
-| `QUERY_MODE` | `-g` | Mode : `-g`, `-p` ou `-c` |
-| `QUERY_DATE` | _(vide)_ | Filtre de date optionnel `yyyy/mm/dd` |
+Détail des variables (`QUERY_INPUT`, `QUERY_OUTPUT`, `QUERY_MODE`,
+`QUERY_DATE`) et de toutes les autres commandes du projet (pipeline,
+journal, nettoyage, documentation...) :
+
+**→ [Le Makefile](../dev/makefile.md)**
 
 ### 3.4 Options disponibles
 
@@ -432,13 +419,13 @@ Les chemins absolus (commençant par `/`) ne sont pas modifiés.
 ## 8. `jq` — Guide pour débutants
 
 `export_csv.sh` utilise `jq` pour interroger le fichier JSON.
-Un guide complet est disponible sur la page dédiée :
+Deux pages dédiées détaillent son fonctionnement :
 
-**→ [Guide jq](jq.md)**
+**→ [Guide jq](jq.md)** — couvre depuis zéro : JSON, les filtres, `.[]`,
+`|`, `select`, `as $var`, `//`, `sort`, `join`, `length`, `--arg`.
 
-Il couvre depuis zéro : JSON, les filtres, `.[]`, `|`, `select`, `as $var`,
-`//`, `sort`, `join`, `length`, `--arg`, et le décryptage du filtre complet
-du mode global.
+**→ [Décryptage des filtres](filtres.md)** — applique ces concepts aux
+filtres réels des trois modes (`-g`, `-p`, `-c`).
 
 ---
 

@@ -90,7 +90,17 @@ nav:
       - export_csv.sh:
           - Guide: export_csv/guide.md
           - Guide jq: export_csv/jq.md
+          - Décryptage des filtres: export_csv/filtres.md
   - Développement:
       - Installation: dev/installation.md
+      - Makefile: dev/makefile.md
       - Tests: dev/tests.md
       - Qualité du code: dev/qualite.md
+  - Conteneurisation:
+      - Vue d'ensemble: docker/index.md
+      - Linux: docker/linux.md
+      - macOS (Apple Silicon): docker/macos.md
+      - Cross-build (autres architectures): docker/cross_build.md
+      - IBM Z (zCX):
+          - Présentation: docker/zcx_presentation.md
+          - Déploiement: docker/zcx_deploiement.md

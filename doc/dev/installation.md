@@ -30,6 +30,31 @@ uv add <paquet>          # dépendance de production
 uv add --dev <paquet>    # dépendance de développement uniquement
 ```
 
+## Comprendre `uv run`
+
+Toutes les commandes Python de ce projet (tests, lint, pipeline...) sont
+préfixées par `uv run`. Cette commande exécute le programme indiqué **dans
+l'environnement virtuel du projet** (`.venv/`), sans avoir besoin de
+l'activer manuellement :
+
+```bash
+# Avec activation manuelle de l'environnement virtuel
+source .venv/bin/activate
+python src/pipeline.py
+deactivate
+
+# Équivalent en une seule commande, sans activation
+uv run python src/pipeline.py
+```
+
+## Vérifier l'installation
+
+```bash
+uv run python --version   # doit afficher Python 3.12 ou plus récent
+uv run ruff --version      # confirme que les outils de dev sont installés
+uv run mypy --version
+```
+
 ## Variables d'environnement
 
 Copier `.env.example` en `.env` et renseigner les valeurs si nécessaire :

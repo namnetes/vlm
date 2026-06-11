@@ -23,7 +23,13 @@ ETL pipeline that transforms IBM File Manager VLM (View Load Module) XML reports
 uv sync                           # install / update dependencies
 
 make run                          # run the full pipeline (all 4 steps)
-make run STEPS=2-4                # run steps 2 to 4 only
+make run STEPS=2-4                # run steps 2 to 4 only (also accepts
+                                  # aliases: clean|copt|json|extract,
+                                  # e.g. STEPS=copt-extract)
+make query                        # export datas/vlm.json -> CSV via script/export_csv.sh
+                                  # QUERY_MODE=-g (default) | -p | -c, QUERY_DATE=yyyy/mm/dd
+make log-level LOG_LEVEL=DEBUG    # set [logging] level in config.toml (DEBUG|INFO|WARNING|ERROR)
+make log                          # open datas/pipeline.log with less (+G)
 make clean                        # delete caches + all pipeline-produced files
                                   # (never touches datas/vlm.xml or datas/copt/ dir)
 
@@ -32,12 +38,20 @@ make docs-start                   # serve in background (.mkdocs.pid)
 make docs-stop                    # stop background server
 make docs-build                   # compile to site/
 
-uv run pytest                     # all tests with coverage
+uv run pytest                     # all tests with coverage (tests/ has no
+                                  # test files yet -> exit code 5, expected)
 uv run pytest tests/test_foo.py::test_bar -v   # single test
 uv run ruff check src/ tests/     # lint
 uv run ruff check src/ tests/ --fix            # lint + auto-fix
+uv run ruff format src/ tests/    # format
 uv run mypy src/                  # type check
 ```
+
+## Commit messages
+
+Enforced by the `gitlint` pre-commit hook: Conventional Commits type
+(`feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert`), optional
+scope, title ≤ 72 chars, body lines ≤ 100 chars.
 
 ## Architecture
 

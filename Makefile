@@ -9,10 +9,14 @@ PORT     := $(shell \
         lsof -ti:$$p >/dev/null 2>&1 || { echo $$p; break; }; \
     done)
 STEPS         ?=
+PYTHON_RUN    ?= uv run
 QUERY_INPUT   ?= datas/vlm.json
 QUERY_OUTPUT  ?= datas/export.csv
 QUERY_MODE    ?= -g
 QUERY_DATE    ?=
+IMAGE_NAME    ?= vlm-pipeline
+DOCKER_RUN_OPTS ?= --rm -v "$(CURDIR)/datas:/app/datas"
+ARGS          ?=
 
 export DISABLE_MKDOCS_2_WARNING := true
 
@@ -22,8 +26,12 @@ YELLOW := \033[0;33m
 BOLD   := \033[1m
 RESET  := \033[0m
 
+LOG_LEVELS   := DEBUG INFO WARNING ERROR
+PIPELINE_LOG := datas/pipeline.log
+
 .DEFAULT_GOAL := help
-.PHONY: run query clean docs docs-start docs-stop docs-build help
+.PHONY: run query log-level log clean docs docs-start docs-stop docs-build \
+        docker-build docker-run help
 
 # ── Macros internes ───────────────────────────────────────────────────────────
 
@@ -51,7 +59,7 @@ endef
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 run:
-	uv run python src/pipeline.py $(STEPS)
+	$(PYTHON_RUN) python src/pipeline.py $(STEPS)
 
 # ── Export CSV ────────────────────────────────────────────────────────────────
 
@@ -62,6 +70,30 @@ query:
 	    -o $(QUERY_OUTPUT) \
 	    $(QUERY_MODE) \
 	    $(if $(QUERY_DATE),-d $(QUERY_DATE),)
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+
+log-level:
+	@[ -n "$(LOG_LEVEL)" ] || { \
+		printf "$(RED)Erreur$(RESET) : LOG_LEVEL est requis ($(LOG_LEVELS)).\n"; \
+		printf "  → Exemple : make log-level LOG_LEVEL=DEBUG\n"; \
+		exit 1; \
+	}
+	@case " $(LOG_LEVELS) " in \
+		*" $(LOG_LEVEL) "*) ;; \
+		*) printf "$(RED)Erreur$(RESET) : niveau '$(LOG_LEVEL)' invalide ($(LOG_LEVELS)).\n"; \
+		   exit 1;; \
+	esac
+	@sed -i 's/^level = ".*"/level = "$(LOG_LEVEL)"/' config.toml
+	@printf "$(GREEN)OK$(RESET) Niveau de log défini sur $(LOG_LEVEL) dans config.toml\n"
+
+log:
+	$(call require_cmd,less)
+	@[ -f $(PIPELINE_LOG) ] || { \
+		printf "$(RED)Erreur$(RESET) : $(PIPELINE_LOG) introuvable — lancez 'make run' au moins une fois.\n"; \
+		exit 1; \
+	}
+	less +G $(PIPELINE_LOG)
 
 # ── Nettoyage ─────────────────────────────────────────────────────────────────
 
@@ -78,6 +110,16 @@ clean:
 	rm -f datas/pipeline.log datas/pipeline.log.* 2>/dev/null || true
 	rm -f datas/copt/copt.csv 2>/dev/null || true
 	rm -rf datas/copt/loadlibs 2>/dev/null || true
+
+# ── Conteneurisation ──────────────────────────────────────────────────────────
+
+docker-build:
+	$(call require_cmd,docker)
+	docker build -t $(IMAGE_NAME) .
+
+docker-run:
+	$(call require_cmd,docker)
+	docker run $(DOCKER_RUN_OPTS) $(IMAGE_NAME) $(ARGS)
 
 # ── Documentation ─────────────────────────────────────────────────────────────
 
@@ -141,7 +183,13 @@ help:
 	@printf "               QUERY_MODE=-g (défaut) | -p | -c\n"
 	@printf "               QUERY_OUTPUT=datas/export.csv\n"
 	@printf "               QUERY_DATE=2026/01/01 (filtre optionnel)\n"
+	@printf "  $(BOLD)log-level$(RESET)    Modifie le niveau de log dans config.toml\n"
+	@printf "               LOG_LEVEL=DEBUG|INFO|WARNING|ERROR (requis)\n"
+	@printf "  $(BOLD)log$(RESET)          Ouvre $(PIPELINE_LOG) avec less (fin du fichier)\n"
 	@printf "  $(BOLD)clean$(RESET)        Supprime caches et fichiers produits par le pipeline\n\n"
+	@printf "  $(BOLD)docker-build$(RESET) Construit l'image Docker ($(IMAGE_NAME))\n"
+	@printf "  $(BOLD)docker-run$(RESET)   Lance une cible make dans le conteneur (volume datas/ monté)\n"
+	@printf "               ARGS=\"run STEPS=2-4\" | ARGS=query | ARGS=\"query QUERY_MODE=-p\"\n\n"
 	@printf "  $(BOLD)docs$(RESET)         Lance MkDocs en mode développement (foreground)\n"
 	@printf "  $(BOLD)docs-start$(RESET)   Lance MkDocs en arrière-plan\n"
 	@printf "  $(BOLD)docs-stop$(RESET)    Arrête MkDocs lancé en arrière-plan\n"

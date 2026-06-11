@@ -10,6 +10,7 @@
 
 1. [Contexte et glossaire](#1-contexte-et-glossaire)
 2. [Vue d'ensemble du traitement](#2-vue-densemble-du-traitement)
+2b. [Paramètres de la ligne de commande](#2b-paramètres-de-la-ligne-de-commande)
 3. [Format du fichier d'entrée](#3-format-du-fichier-dentrée)
 4. [Format du fichier de sortie](#4-format-du-fichier-de-sortie)
 5. [Règles de conversion XML → JSON](#5-règles-de-conversion-xml--json)

@@ -7,7 +7,7 @@ file = "datas/pipeline.log"
 
 # Niveau de criticité appliqué au handler fichier ET au logger.
 # Valeurs acceptées : DEBUG | INFO | WARNING | ERROR
-level = "INFO"
+level = "DEBUG"
 
 # Mode d'ouverture du fichier de log.
 # "a" = ajout (conserve l'historique entre les exécutions)

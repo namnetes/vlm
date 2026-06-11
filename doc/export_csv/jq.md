@@ -45,6 +45,27 @@ Les crochets `[]` contiennent un **tableau** (liste ordonnée d'éléments).
 
 On peut imbriquer des objets dans des objets et des tableaux dans des tableaux.
 
+### 1.1 Des tableaux dans des tableaux
+
+C'est le point le plus important à comprendre avant de lire la suite : dans
+le fichier `vlm.json`, **un tableau peut contenir des objets qui contiennent
+eux-mêmes un tableau**, et ainsi de suite sur plusieurs niveaux. L'extrait
+ci-dessus contient **quatre tableaux imbriqués** :
+
+| Niveau | Clé / position    | Type      | Contenu                                  |
+|--------|-------------------|-----------|---------------------------------------------|
+| 1      | racine `[ ... ]`  | tableau   | une entrée par **Loadlib**                 |
+| 2      | `"Loadmods"`      | tableau   | une entrée par **Loadmod** (module)        |
+| 3      | `"CSECTs"`        | tableau   | une entrée par **CSECT** (section compilée)|
+| 4      | `"Copt"`          | tableau   | une chaîne par **option de compilation**   |
+
+Entre chaque tableau se trouve un **objet** (`{ ... }`) qui porte les
+métadonnées de ce niveau (`Loadlib`, `Name`, `Compiler1`, etc.) **et** la clé
+qui contient le tableau du niveau suivant. C'est cette alternance
+`tableau → objet → tableau → objet → ...` qui explique pourquoi, plus loin
+dans ce guide, on enchaîne plusieurs `.[]` à la suite (un par niveau de
+tableau à traverser).
+
 ---
 
 ## 2. Qu'est-ce que `jq` ?
@@ -121,10 +142,35 @@ Si le champ n'existe pas, `jq` retourne `null`.
 ```bash
 # Nom de toutes les loadlibs
 jq -r '.[].Loadlib' datas/vlm.json
+```
 
+Ici, `.[]` parcourt le tableau racine (niveau 1) et `.Loadlib` lit un champ
+de chaque objet Loadlib obtenu — un seul niveau de tableau est traversé.
+
+### 6.1 Traverser un deuxième niveau de tableau
+
+Pour lister les modules, il faut descendre d'un niveau supplémentaire :
+`Loadmods` est **lui-même un tableau** (niveau 2, voir §1.1), donc `.[]` seul
+ne suffit pas.
+
+```bash
+# .[] entre dans le tableau racine, .Loadmods accède au champ
+jq '.[].Loadmods' datas/vlm.json
+# → renvoie un tableau de Loadmods par Loadlib, ex. [ {...}, {...} ]
+#   (toujours un tableau, pas encore un module individuel)
+```
+
+Il faut un **second `.[]`** pour entrer dans ce tableau et obtenir un Loadmod
+à la fois :
+
+```bash
 # Noms de tous les modules (toutes loadlibs confondues)
 jq -r '.[].Loadmods[].Name' datas/vlm.json
 ```
+
+**Règle pratique :** chaque `[]` correspond à un niveau de tableau du §1.1.
+Pour atteindre `Copt` (niveau 4), il faudrait donc trois `.[]` :
+`.[].Loadmods[].CSECTs[].Copt`.
 
 ---
 
@@ -326,46 +372,11 @@ La valeur est transmise proprement — équivalent des paramètres préparés en
 
 ---
 
-## 17. Mise en pratique — décryptage du filtre du mode global
+## 17. Pour aller plus loin
 
-Voici le filtre jq complet utilisé par `export_csv.sh` en mode global (`-g`),
-commenté ligne par ligne :
+Ce guide couvre les concepts jq de base, indépendamment de tout script.
 
-```jq
-.[]
-| .Loadlib as $lib
-| .Loadmods[] as $lm
-| select($min_date == "" or ($lm.Linkedon >= $min_date))
-| $lm.CSECTs[] as $csect
-| "\($lib);"
-+ "\($lm.Name);"
-+ "\($lm.Linkedon);"
-+ "\($csect.Name);"
-+ "\($csect.Compiler1);"
-+ "ThreadSafe=\($csect.ThreadSafe);"
-+ "CICS=\($csect.CICS);"
-+ "DB2=\($csect.DB2);"
-+ "WMQ=\($csect.WMQ);"
-+ "\($csect.Identify // "")"
-```
+Pour voir comment ces concepts s'assemblent dans les filtres réels utilisés
+par `export_csv.sh` (modes `-g`, `-p`, `-c`), consultez la page dédiée :
 
-| Ligne | Ce que ça fait |
-|---|---|
-| `.[]` | Pour chaque loadlib dans le tableau racine |
-| `\| .Loadlib as $lib` | Sauvegarder le nom de la loadlib dans `$lib` |
-| `\| .Loadmods[] as $lm` | Pour chaque module, sauvegarder dans `$lm` |
-| `\| select(...)` | Ignorer les modules trop anciens si `-d` est actif |
-| `\| $lm.CSECTs[] as $csect` | Pour chaque CSECT, sauvegarder dans `$csect` |
-| `\| "\($lib);"` | Commencer la ligne CSV avec la loadlib |
-| `+ "\($lm.Name);"` | Ajouter le nom du module |
-| `+ "\($lm.Linkedon);"` | Ajouter la date de link-edit |
-| `+ "\($csect.Name);"` | Ajouter le nom du CSECT |
-| `+ "\($csect.Compiler1);"` | Ajouter le compilateur |
-| `+ "ThreadSafe=\(...)"` | Ajouter les indicateurs middleware |
-| `+ "\($csect.Identify // "")"` | Ajouter l'identifiant (vide si absent) |
-
-**Pourquoi `$lib` et pas `.Loadlib` à la fin ?**
-
-À la ligne `| $lm.CSECTs[] as $csect`, le contexte courant est un CSECT.
-`.Loadlib` ne correspond plus à rien dans un CSECT.
-Mais `$lib` a été sauvegardé avant de descendre — il reste accessible.
+**→ [Décryptage des filtres](filtres.md)**

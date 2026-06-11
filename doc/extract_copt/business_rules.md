@@ -144,7 +144,7 @@ Pour chaque CSECT traité, un fichier texte est créé sous le chemin :
 - **Contenu :** une option de compilation par ligne.
 - **Répertoires créés automatiquement** si absents (`mkdir -p`).
 - `<compiler_short>` est le code abrégé du compilateur issu du dictionnaire
-  `COMPILERS` (voir §5.7). Si le compilateur n'est pas reconnu, la valeur
+  `COMPILERS` (voir §5.6). Si le compilateur n'est pas reconnu, la valeur
   `unknown` est utilisée.
 
 Exemple de chemin :
@@ -290,7 +290,7 @@ if output_path.exists():
 
 ---
 
-### 5.7 Résolution du compilateur
+### 5.6 Résolution du compilateur
 
 **Règle :** le champ `Compiler1` de chaque CSECT (chaîne brute issue du JSON)
 est traduit en un code abrégé court via le dictionnaire `COMPILERS`. Ce code
@@ -362,7 +362,7 @@ COMPILERS = {
 
 ---
 
-### 5.6 Parcours en mémoire avec un générateur
+### 5.7 Parcours en mémoire avec un générateur
 
 **Règle :** la hiérarchie JSON est parcourue avec un **générateur** Python
 (`yield`). Les lignes sont produites et écrites une par une, sans stocker

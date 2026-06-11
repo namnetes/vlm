@@ -346,64 +346,17 @@ prepare_output_file() {
 # =============================================================================
 run_global_mode() {
     # -------------------------------------------------------------------------
-    # Présentation de jq
-    # -------------------------------------------------------------------------
-    # jq est un processeur JSON en ligne de commande. Il accepte un filtre
+    # jq est un processeur JSON en ligne de commande : il accepte un filtre
     # (programme jq) et un fichier JSON, et produit une sortie transformée.
     # Analogie : jq est à JSON ce que sed/awk est au texte.
+    #   -r (raw output) : affiche les chaînes sans guillemets.
+    #   --arg min_date "$MIN_LINKEDIT_DATE" : injecte la date de filtre comme
+    #     variable jq $min_date, sans interpolation directe dans le filtre
+    #     (équivalent d'un paramètre préparé SQL).
     #
-    # Options utilisées :
-    #   -r (raw output) : affiche les chaînes de caractères sans guillemets.
-    #                     Sans -r, "MYPGM" serait affiché avec les guillemets.
-    #   --arg nom valeur : injecte une variable shell dans le filtre jq sous
-    #                     forme de variable jq ($nom). Ici, $MIN_LINKEDIT_DATE
-    #                     devient accessible dans le filtre jq sous le nom
-    #                     $min_date. Cela évite les injections de code (problème
-    #                     similaire aux injections SQL) car la valeur est
-    #                     transmise proprement, pas interpolée dans la chaîne.
-    # -------------------------------------------------------------------------
-    #
-    # Décryptage du filtre jq ligne par ligne :
-    #
-    #   .[]
-    #     Le JSON d'entrée est un tableau [ {...}, {...}, ... ].
-    #     .[] itère sur chaque élément du tableau (une Loadlib à la fois).
-    #     Équivalent Python : "for item in data:"
-    #
-    #   | .Loadlib as $lib
-    #     Le | (pipe jq) passe le résultat de l'expression précédente à la
-    #     suivante, comme le pipe Unix | mais à l'intérieur de jq.
-    #     ".Loadlib as $lib" stocke la valeur du champ Loadlib dans la variable
-    #     $lib pour pouvoir la réutiliser plus loin (car une fois qu'on itère
-    #     sur les Loadmods, le contexte courant change et .Loadlib n'est plus
-    #     accessible directement).
-    #
-    #   | .Loadmods[] as $lm
-    #     .Loadmods[] itère sur chaque élément du tableau Loadmods.
-    #     Chaque élément est stocké dans $lm.
-    #     L'effet combiné de .[] au début et de .Loadmods[] ici produit le
-    #     produit cartésien : chaque loadlib × chaque loadmod.
-    #
-    #   | select($min_date == "" or ($lm.Linkedon >= $min_date))
-    #     select(condition) : ne laisse passer que les éléments pour lesquels
-    #     la condition est vraie (filtre).
-    #     - Si $min_date est vide : la condition est toujours vraie (pas de filtre).
-    #     - Sinon : ne garde que les loadmods dont Linkedon >= $min_date.
-    #     La comparaison >= est LEXICOGRAPHIQUE (alphabétique) en jq. Cela
-    #     fonctionne correctement pour les dates au format yyyy/mm/dd car l'année
-    #     est en premier : "2025/06/01" > "2025/01/15" (comme un tri alphabétique).
-    #
-    #   | $lm.CSECTs[] as $csect
-    #     Itère sur chaque CSECT du loadmod courant. L'effet combiné des trois
-    #     itérateurs (.[], .Loadmods[], .CSECTs[]) produit une ligne pour chaque
-    #     triplet (loadlib, loadmod, csect).
-    #
-    #   | "\($lib);" + "\($lm.Name);" + ...
-    #     Construction de la ligne CSV par interpolation de chaîne.
-    #     \(expression) dans une chaîne jq évalue l'expression et insère le
-    #     résultat (similaire à f"{variable}" en Python ou "${variable}" en Bash).
-    #     Les chaînes sont concaténées avec l'opérateur +.
-    #     Chaque champ est suivi de ; (le délimiteur CSV du projet).
+    # Décryptage complet du filtre, ligne par ligne, avec schéma du flux et
+    # des variables sauvegardées ($lib, $lm, $csect) :
+    #   doc/export_csv/jq.md §17 "Décryptage du filtre du mode global"
     # -------------------------------------------------------------------------
     jq -r --arg min_date "$MIN_LINKEDIT_DATE" '
         .[]
@@ -445,32 +398,11 @@ run_global_mode() {
 # Les options sont triées par ordre alphabétique.
 # =============================================================================
 run_options_mode() {
-    # Explication des opérateurs jq supplémentaires par rapport au mode global :
-    #
-    #   | select($lm.Name == $csect.Name)
-    #     Filtre supplémentaire : ne conserve que le CSECT dont le nom est
-    #     IDENTIQUE à celui du loadmod. En IBM COBOL, ce CSECT est le programme
-    #     principal. Les CSECTs secondaires (stubs DB2, CICS, sous-programmes)
-    #     ont des noms différents et sont ainsi exclus.
-    #
-    #   | select((($csect.Copt // []) | length) > 0)
-    #     Double filtre sur la liste Copt :
-    #     - $csect.Copt // [] : opérateur // (alternative en jq, similaire à
-    #       l'opérateur "or" de null-coalescing). Si Copt est null ou absent,
-    #       retourne [] (tableau vide) plutôt que null. Cela évite une erreur
-    #       sur la suite du filtre.
-    #     - | length : retourne le nombre d'éléments du tableau.
-    #     - > 0 : ne garder que les modules ayant au moins une option Copt.
-    #       Les modules sans options compilées (stubs assembleur, etc.) sont exclus.
-    #
-    #   ($csect.Copt | sort | join(";"))
-    #     Traitement de la liste des options :
-    #     - sort : trie les éléments du tableau dans l'ordre lexicographique
-    #       (alphabétique). Résultat stable et reproductible quel que soit
-    #       l'ordre original dans le JSON.
-    #     - join(";") : concatène tous les éléments avec ; comme séparateur.
-    #       Exemple : ["RENT","NOOPT","OPT(FULL)"] → "NOOPT;OPT(FULL);RENT"
-    #       Chaque option devient ainsi sa propre colonne CSV.
+    # Reprend le socle du mode global (voir doc/export_csv/jq.md §17), avec
+    # deux filtres select() supplémentaires (CSECT principal uniquement,
+    # modules sans Copt exclus) et les options triées/concaténées.
+    # Décryptage complet, ligne par ligne, avec schéma :
+    #   doc/export_csv/jq.md §18 "Décryptage du filtre du mode options"
     jq -r --arg min_date "$MIN_LINKEDIT_DATE" '
         .[]
         | .Loadlib as $lib
@@ -499,10 +431,10 @@ run_options_mode() {
 #   loadlib;load_name;linkedon;csect_name;compiler
 # =============================================================================
 run_compiler_mode() {
-    # select($lm.Name == $csect.Name) : même filtre que dans run_options_mode.
-    # Ne retient que le CSECT dont le nom est identique à celui du module
-    # (le CSECT principal). Les stubs DB2, CICS et autres CSECTs secondaires
-    # ont des noms différents et sont ainsi exclus.
+    # Reprend le socle du mode global (voir doc/export_csv/jq.md §17), avec
+    # le même filtre "CSECT principal" que le mode options (§18).
+    # Décryptage complet, ligne par ligne, avec schéma :
+    #   doc/export_csv/jq.md §19 "Décryptage du filtre du mode compiler"
     jq -r --arg min_date "$MIN_LINKEDIT_DATE" '
         .[]
         | .Loadlib as $lib

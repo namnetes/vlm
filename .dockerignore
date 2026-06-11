@@ -1,0 +1,32 @@
+# Données et artefacts du pipeline — fournis via le volume /app/datas
+datas/
+
+# Documentation et site compilé
+doc/
+site/
+.mkdocs.pid
+.mkdocs.log
+
+# Environnement Python / outils de dev
+.venv/
+.env
+.envrc
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Tests (non nécessaires à l'image runtime)
+tests/
+
+# VCS et éditeurs
+.git/
+.github/
+.vscode/
+.zed/
+.claude/
+*.swp
+.DS_Store

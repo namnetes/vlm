@@ -39,6 +39,59 @@ extract_copt.py   →  CSV + TXT           Extraction des options par CSECT
 | [inspect_copt.py](inspect_copt/business_rules.md)   | Utilitaire — inspection des balises COPT d'un XML |
 | [export_csv.sh](export_csv/guide.md)                | Script Bash — export du JSON vers CSV (3 modes)   |
 
+## Arborescence du projet
+
+Vue d'ensemble des principaux fichiers et répertoires du dépôt — pour le
+détail de chaque script, voir le tableau ci-dessus.
+
+### Code et scripts
+
+| Chemin | Rôle |
+|---|---|
+| `src/` | Code Python du pipeline (4 étapes + utilitaires partagés) |
+| `script/export_csv.sh` | Export CSV alternatif via `jq` — [Guide](export_csv/guide.md) |
+| `script/serve_docs.sh` | Lance MkDocs en local |
+| `tests/` | Tests pytest — voir [Tests](dev/tests.md) |
+
+### Données (non versionné)
+
+| Chemin | Rôle |
+|---|---|
+| `datas/vlm.xml` | Rapport VLM brut — entrée du pipeline, jamais supprimé par `make clean` |
+| `datas/clean_vlm.xml`, `datas/clean_vlm_copt.xml` | Fichiers intermédiaires (étapes 1 et 2) |
+| `datas/vlm.json` | Sortie principale du pipeline (étape 3) |
+| `datas/copt/` | CSV + fichiers COPT par CSECT (étape 4) |
+| `datas/pipeline.log` | Journal du pipeline — `make log` |
+
+### Configuration
+
+| Chemin | Rôle |
+|---|---|
+| `config.toml` | Chemins et configuration du logging, lus par `src/utils.py` |
+| `pyproject.toml` | Dépendances et configuration des outils (pytest, mypy, coverage) |
+| `ruff.toml` | Configuration du linter/formatter `ruff` |
+| `pyrightconfig.json` | Configuration Pyright (vérification de types dans l'IDE) |
+| `.env.example`, `.envrc` | Variables d'environnement (`direnv`) — voir [Installation](dev/installation.md) |
+| `.pre-commit-config.yaml` | Hooks pre-commit (lint, gitlint, ...) |
+| `requirements.txt` | Export figé des dépendances (généré, voir l'en-tête du fichier) |
+
+### Pilotage et conteneurisation
+
+| Chemin | Rôle |
+|---|---|
+| `Makefile` | Toutes les commandes du projet — voir [Le Makefile](dev/makefile.md) |
+| `Dockerfile`, `.dockerignore` | Image de conteneur — voir [Conteneurisation](docker/index.md) |
+
+### Documentation et divers
+
+| Chemin | Rôle |
+|---|---|
+| `doc/`, `mkdocs.yml` | Sources et configuration de cette documentation |
+| `README.md` | Aperçu rapide du projet |
+| `CLAUDE.md` | Instructions pour Claude Code (architecture, conventions) |
+| `CHANGELOG.md` | Historique des versions (Keep a Changelog) |
+| `.vscode/` | Configuration de l'éditeur (tâches, débogage) |
+
 ## Commandes rapides
 
 ```bash
@@ -67,7 +120,8 @@ uv run mkdocs build
 ## Développement
 
 Voir l'onglet **Développement** pour l'installation pas à pas,
-les commandes de test, de lint et de vérification des types.
+les commandes de test, de lint et de vérification des types, ainsi que
+[toutes les commandes `make` du projet](dev/makefile.md).
 
 ## Environnement technique
 
