@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Convertit un fichier XML VLM nettoyé en fichier JSON structuré.
 
@@ -55,20 +54,30 @@ def split_copt_options(raw: str) -> list[str]:
 
     Returns:
         Liste de chaînes, chaque élément représentant une option de compilation.
+
     """
     # CDbiPathBase() peut apparaître à l'intérieur d'un bloc LEINFO=(...).
     # On l'efface en premier car il contient lui-même des parenthèses qui
     # perturberaient la suppression du LEINFO global.
-    raw = re.sub(r"(\bLEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw)
+    # (?:NON-)? capture aussi la variante NON-LEINFO produite par
+    # reformat_copt.py en mode placeholder.
+    raw = re.sub(
+        r"(\b(?:NON-)?LEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw
+    )
 
-    # Supprime LEINFO=(...) avant la normalisation des espaces.
+    # Supprime LEINFO=(...) et NON-LEINFO=(...) avant la normalisation des
+    # espaces — ce sont des métadonnées Language Environment, pas de vraies
+    # options de compilation.
     # - \b : limite de mot (évite de capturer NOTLEINFO).
+    # - (?:NON-)? : préfixe optionnel pour traiter NON-LEINFO comme un seul
+    #   bloc ; sans lui, seul "LEINFO=(N)" serait retiré et le résidu "NON-"
+    #   resterait comme fausse option.
     # - .*? : quantificateur non-greedy — s'arrête au premier ')' rencontré
     #   (et non au dernier), pour ne supprimer qu'un seul bloc à la fois.
     # - re.DOTALL : le point '.' correspond aussi aux sauts de ligne (\n),
     #   car LEINFO peut s'étendre sur plusieurs lignes dans le rapport.
     raw_without_leinfo: str = re.sub(
-        r"\bLEINFO=\(.*?\)",
+        r"\b(?:NON-)?LEINFO=\(.*?\)",
         "",
         raw,
         flags=re.DOTALL,
@@ -80,7 +89,7 @@ def split_copt_options(raw: str) -> list[str]:
 
     tokens: list[str] = []
     current: list[str] = []  # Buffer pour le token en cours de construction.
-    paren_depth: int = 0     # Profondeur de parenthèses imbriquées.
+    paren_depth: int = 0  # Profondeur de parenthèses imbriquées.
 
     for ch in normalized:
         if ch == "(":
@@ -129,6 +138,7 @@ def parse_args() -> argparse.Namespace:
         Namespace argparse avec les attributs :
         ``file`` (XML en entrée), ``output`` (JSON en sortie),
         ``encoding`` (encodage du XML).
+
     """
     parser = argparse.ArgumentParser(
         description="Convertit un fichier XML VLM nettoyé en JSON structuré."
@@ -172,18 +182,20 @@ def check_xml_well_formed(xml_path: str) -> bool:
 
     Returns:
         ``True`` si le fichier est bien formé, ``False`` sinon.
+
     """
     try:
         ET.parse(xml_path)
-        LOGGER.debug("%s est bien formé.", xml_path)
-        return True
     except ET.ParseError as e:
         LOGGER.error("Erreur de syntaxe XML dans %s : %s", xml_path, e)
         return False
+    else:
+        LOGGER.debug("%s est bien formé.", xml_path)
+        return True
 
 
 def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
-    """Transforme un fichier XML VLM nettoyé en fichier JSON structuré.
+    """Convertit un fichier XML VLM nettoyé en fichier JSON structuré.
 
     Parcourt l'arbre XML niveau par niveau (Loadlib → Loadmod → CSECT)
     et construit une liste Python de dictionnaires, puis la sérialise en JSON.
@@ -222,6 +234,7 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
         xml_path: Chemin du fichier XML d'entrée (bien formé, encodage déclaré).
         json_path: Chemin du fichier JSON à créer.
         encoding: Encodage du fichier XML (ex. ``utf-8``, ``iso8859-1``).
+
     """
     # Pattern pour valider le format de l'attribut "Identify" d'un CSECT.
     # Exemple attendu : "CCBD01/51EBC3AD/DYA0000005"
@@ -229,11 +242,11 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
     # - Partie 2 (1-8 chars alphanum)           : hash ou version.
     # - Partie 3 (DY|DA + 2 chars + 6 chiffres) : code de package.
     pattern: str = (
-        r"^[A-Za-z0-9_@à]{1,8}"           # Partie 1 : code application
+        r"^[A-Za-z0-9_@à]{1,8}"  # Partie 1 : code application
         r"/"
-        r"[A-Za-z0-9]{1,8}"               # Partie 2 : hash/version
+        r"[A-Za-z0-9]{1,8}"  # Partie 2 : hash/version
         r"/"
-        r"(DY|DA)[A-Za-z0-9]{2}[0-9]{6}$" # Partie 3 : code package
+        r"(DY|DA)[A-Za-z0-9]{2}[0-9]{6}$"  # Partie 3 : code package
     )
 
     LOGGER.info("Début de la conversion : %s → %s", xml_path, json_path)
@@ -248,7 +261,9 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
     # Element | None : on lève une erreur explicite si ce cas impossible survient.
     root: ET.Element = tree.getroot()
     if root is None:
-        raise ValueError(f"Le fichier XML '{xml_path}' ne contient pas d'élément racine.")
+        raise ValueError(
+            f"Le fichier XML '{xml_path}' ne contient pas d'élément racine."
+        )
     vlm_list: list[dict[str, Any]] = []  # Accumulera toutes les Loadlibs.
     nb_loadmods: int = 0
     nb_csects: int = 0
@@ -270,31 +285,31 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
             nb_loadmods += 1
             # Construction du dictionnaire du loadmod depuis ses attributs XML.
             loadmod_data: dict[str, Any] = {
-                "Name":      loadmod.get("Name"),
-                "Linkedon":  loadmod.get("Linkedon"),
-                "Linkedat":  loadmod.get("Linkedat"),
-                "Linkedby":  loadmod.get("Linkedby"),
-                "EPA":       loadmod.get("EPA"),
-                "MSize":     loadmod.get("MSize"),
-                "TTR":       loadmod.get("TTR"),
-                "SSI":       loadmod.get("SSI"),
-                "AC":        loadmod.get("AC"),
-                "AM":        loadmod.get("AM"),
-                "RM":        loadmod.get("RM"),
-                "CSECTs":    [],
+                "Name": loadmod.get("Name"),
+                "Linkedon": loadmod.get("Linkedon"),
+                "Linkedat": loadmod.get("Linkedat"),
+                "Linkedby": loadmod.get("Linkedby"),
+                "EPA": loadmod.get("EPA"),
+                "MSize": loadmod.get("MSize"),
+                "TTR": loadmod.get("TTR"),
+                "SSI": loadmod.get("SSI"),
+                "AC": loadmod.get("AC"),
+                "AM": loadmod.get("AM"),
+                "RM": loadmod.get("RM"),
+                "CSECTs": [],
             }
 
             for csect in loadmod.findall("CSECT"):
                 nb_csects += 1
                 csect_data: dict[str, Any] = {
-                    "Name":      csect.get("Name"),
-                    "Type":      csect.get("Type"),
-                    "Class":     csect.get("Class"),
-                    "Address":   csect.get("Address"),
-                    "Size":      csect.get("Size"),
-                    "RMODE":     csect.get("ARMODE"),
+                    "Name": csect.get("Name"),
+                    "Type": csect.get("Type"),
+                    "Class": csect.get("Class"),
+                    "Address": csect.get("Address"),
+                    "Size": csect.get("Size"),
+                    "RMODE": csect.get("ARMODE"),
                     "Compiler1": csect.get("Compiler1"),
-                    "Date":      csect.get("Date"),
+                    "Date": csect.get("Date"),
                 }
 
                 # Champs booléens dérivés du nom du CSECT.
@@ -352,9 +367,9 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
 
         vlm_list.append(
             {
-                "Loadlib":     loadlib,
+                "Loadlib": loadlib,
                 "MemberCount": member_count,
-                "Loadmods":    loadmods,
+                "Loadmods": loadmods,
             }
         )
 
@@ -369,7 +384,7 @@ def xml_to_json(xml_path: str, json_path: str, encoding: str) -> None:
     # - indent=2 : indentation de 2 espaces pour un fichier lisible.
     # - ensure_ascii=False : conserve les caractères non-ASCII (accents, etc.)
     #   tels quels au lieu de les encoder en \uXXXX.
-    with open(json_path, "w", encoding="utf-8") as f:
+    with Path(json_path).open("w", encoding="utf-8") as f:
         json.dump(vlm_list, f, indent=2, ensure_ascii=False)
 
     LOGGER.info("JSON écrit avec succès : %s", json_path)
@@ -388,6 +403,7 @@ def main() -> None:
     Raises:
         SystemExit:
             - Code 2 : fichier introuvable ou répertoire de sortie invalide.
+
     """
     args: argparse.Namespace = parse_args()
     setup_logging(load_config(), "build_json")
@@ -404,7 +420,7 @@ def main() -> None:
     # Validation du répertoire de sortie.
     # output_path.parent vaut Path('.') si le nom de fichier n'a pas de répertoire.
     output_dir: Path = (
-        output_path.parent if output_path.parent != Path("") else Path(".")
+        output_path.parent if output_path.parent != Path() else Path()
     )
     if not output_dir.exists() or not output_dir.is_dir():
         LOGGER.error(
@@ -419,7 +435,9 @@ def main() -> None:
             pass
         testfile.unlink()
     except OSError:
-        LOGGER.error("Répertoire de sortie '%s' non accessible en écriture.", output_dir)
+        LOGGER.error(
+            "Répertoire de sortie '%s' non accessible en écriture.", output_dir
+        )
         sys.exit(2)
 
     check_xml_well_formed(str(input_path))

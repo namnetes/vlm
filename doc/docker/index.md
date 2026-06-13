@@ -72,6 +72,147 @@ make docker-run ARGS="query QUERY_MODE=-p"
     `mkdocs` et `lsof`, qui ne sont **pas** installés dans cette image
     (ce sont des outils de développement, hors périmètre du conteneur).
 
+---
+
+### Référence des cibles disponibles dans le conteneur
+
+#### `help` — afficher l'aide
+
+Point de départ recommandé : liste toutes les cibles sans rien exécuter.
+
+```bash
+make docker-run              # ARGS vide → help par défaut
+make docker-run ARGS=help    # équivalent explicite
+```
+
+---
+
+#### `run` — lancer le pipeline
+
+Lance les 4 étapes en séquence (`clean_report` → `reformat_copt` →
+`build_json` → `extract_copt`). Un fichier `datas/vlm.xml` doit être présent
+avant le premier lancement.
+
+```bash
+# Pipeline complet
+make docker-run ARGS=run
+
+# Étapes 2 à 4 seulement (vlm.xml déjà nettoyé)
+make docker-run ARGS="run STEPS=2-4"
+
+# Alias textuels équivalents
+make docker-run ARGS="run STEPS=copt-extract"
+make docker-run ARGS="run STEPS=json"
+```
+
+| Valeur `STEPS` | Étapes exécutées |
+|---|---|
+| _(vide)_ | 1 → 2 → 3 → 4 (tout) |
+| `2-4` | 2 → 3 → 4 |
+| `3-4` ou `json-extract` | 3 → 4 |
+| `4` ou `extract` | 4 uniquement |
+
+---
+
+#### `query` — exporter en CSV
+
+Interroge `datas/vlm.json` et génère un fichier CSV. Trois modes sont
+disponibles selon le niveau de détail souhaité :
+
+```bash
+# Vue globale — une ligne par loadmod (défaut)
+make docker-run ARGS=query
+
+# Détail des options de compilation COPT
+make docker-run ARGS="query QUERY_MODE=-p"
+
+# Détail par compilateur
+make docker-run ARGS="query QUERY_MODE=-c"
+
+# Avec filtre sur la date de compilation
+make docker-run ARGS="query QUERY_MODE=-g QUERY_DATE=2026/01/01"
+
+# Choisir le fichier de sortie
+make docker-run ARGS="query QUERY_OUTPUT=datas/mon_export.csv"
+```
+
+| Variable | Défaut | Description |
+|---|---|---|
+| `QUERY_MODE` | `-g` | `-g` global · `-p` options COPT · `-c` compilateur |
+| `QUERY_OUTPUT` | `datas/export.csv` | Chemin du CSV produit |
+| `QUERY_DATE` | _(aucun)_ | Filtre `yyyy/mm/dd` sur la date de compilation |
+
+---
+
+#### `log-level` — changer la verbosité des logs
+
+Modifie le niveau de log dans `config.toml` **avant** de relancer le
+pipeline. Le changement est persistant (écrit sur le volume).
+
+```bash
+make docker-run ARGS="log-level LOG_LEVEL=DEBUG"    # très verbeux
+make docker-run ARGS="log-level LOG_LEVEL=INFO"     # normal (défaut)
+make docker-run ARGS="log-level LOG_LEVEL=WARNING"  # avertissements seulement
+make docker-run ARGS="log-level LOG_LEVEL=ERROR"    # erreurs uniquement
+```
+
+---
+
+#### `log` — consulter les logs du pipeline
+
+Ouvre `datas/pipeline.log` avec `less`, positionné en fin de fichier.
+Nécessite que le pipeline ait été lancé au moins une fois.
+
+```bash
+make docker-run ARGS=log
+```
+
+!!! tip "Quitter `less`"
+    Appuyez sur `q` pour quitter l'affichage.
+
+---
+
+#### `clean` — nettoyer les fichiers produits
+
+Supprime tous les fichiers intermédiaires et de sortie. **`datas/vlm.xml`
+n'est jamais supprimé.**
+
+```bash
+make docker-run ARGS=clean
+```
+
+Fichiers supprimés : `clean_vlm.xml`, `clean_vlm_copt.xml`,
+`copt_ignored.txt`, `vlm.json`, `pipeline.log` et le dossier `datas/copt/`
+entier.
+
+---
+
+### Enchaînement typique
+
+```bash
+# 1. Construire l'image (une seule fois)
+make docker-build
+
+# 2. Vérifier les cibles disponibles
+make docker-run
+
+# 3. Lancer le pipeline complet
+make docker-run ARGS=run
+
+# 4. Exporter les résultats
+make docker-run ARGS=query
+
+# 5. Consulter les logs en cas de problème
+make docker-run ARGS="log-level LOG_LEVEL=DEBUG"
+make docker-run ARGS=run
+make docker-run ARGS=log
+
+# 6. Nettoyer avant un nouveau passage
+make docker-run ARGS=clean
+```
+
+---
+
 ### Équivalent `docker run` direct
 
 Le conteneur utilise `ENTRYPOINT ["make"]` : tout ce qui suit le nom de
@@ -171,3 +312,106 @@ parcours utiles à ce projet :
 
 Pour la suite, voir la page correspondant à votre plateforme :
 [Linux](linux.md), [macOS](macos.md) ou [IBM Z / zCX](zcx_presentation.md).
+
+---
+
+## 6. Sécurité — pip retiré de l'image
+
+### Pourquoi supprimer pip ?
+
+`pip` est l'outil d'installation de paquets Python. Il est inclus par défaut
+dans l'image de base `python:3.12-alpine`, mais **il n'est jamais utilisé
+dans cette image** : le pipeline ne s'appuie que sur la bibliothèque standard
+Python (`xml`, `tomllib`, `argparse`…), sans aucun paquet tiers.
+
+Laisser `pip` dans une image inutilisée est un risque de sécurité inutile.
+En juin 2026, plusieurs vulnérabilités ont été identifiées dans les versions
+de pip présentes dans l'image de base, grâce à **Docker Scout**.
+
+!!! info "Comment ces CVEs ont-elles été découvertes ?"
+    L'analyse a été réalisée avec la fonctionnalité **« Advanced image
+    analysis »** de [Docker Scout](https://docs.docker.com/scout/), intégrée
+    à Docker Desktop sur macOS Apple Silicon (M4).
+
+    Docker Scout inspecte le contenu de l'image (paquets OS, bibliothèques
+    Python, etc.) et les croise avec les bases de données de vulnérabilités
+    connues (CVE). C'est accessible directement depuis l'onglet **Images**
+    de Docker Desktop, sans commande supplémentaire.
+
+    ![Onglet Images de Docker Desktop avec Docker Scout](https://docs.docker.com/scout/image-details-view/images/scout-image-details.webp)
+
+    Pour les habitués de la ligne de commande, l'équivalent est :
+    ```bash
+    docker scout cves vlm-pipeline
+    ```
+
+!!! info "Qu'est-ce qu'une CVE ?"
+    Une **CVE** (Common Vulnerabilities and Exposures) est un identifiant
+    officiel attribué à une faille de sécurité connue. Le score **CVSS**
+    (de 0 à 10) mesure sa gravité. Ces failles sont publiées publiquement
+    pour que chacun puisse identifier et corriger les versions vulnérables
+    de ses logiciels.
+
+| CVE | Score CVSS | Description courte |
+|---|---|---|
+| CVE-2026-8643 | 5.5 | Des scripts d'entrée (`console_scripts`) peuvent être installés **hors du répertoire cible** |
+| CVE-2026-6357 | 5.3 | Après l'installation d'un paquet, pip importe des modules Python qui viennent d'être installés (risque d'exécution de code non souhaité) |
+| CVE-2026-3219 | 4.6 | Une archive à la fois `.tar` et `.zip` est traitée comme un ZIP, ce qui peut mener à l'installation de fichiers inattendus |
+| CVE-2026-1703 | 2.0 | L'extraction d'un wheel malveillant peut écrire des fichiers **en dehors** du répertoire d'installation (path traversal) |
+| CVE-2025-8869 | 5.9 | Lors de l'extraction d'une archive tar, des liens symboliques peuvent pointer **hors** du répertoire cible |
+
+### Action prise
+
+La ligne suivante a été ajoutée au `Dockerfile` :
+
+```dockerfile
+RUN apk add --no-cache make bash jq less \
+    && pip uninstall -y pip   # (1)!
+```
+
+1. `pip uninstall -y pip` désinstalle pip de lui-même. L'option `-y` évite
+   la demande de confirmation. Chaîner la commande dans le même `RUN`
+   garantit qu'aucun layer intermédiaire ne conserve pip.
+
+pip est ainsi totalement absent du système de fichiers de l'image finale —
+les cinq CVEs ci-dessus ne s'appliquent plus.
+
+### Vérifier que pip est bien absent
+
+Après un `make docker-build`, on peut s'assurer que pip n'est plus dans
+l'image avec l'une des commandes suivantes :
+
+=== "Vérification via Python"
+
+    ```bash
+    docker run --rm --entrypoint python vlm-pipeline \
+        -c "import pip; print(pip.__version__)"
+    ```
+
+    **Résultat attendu :**
+
+    ```
+    /usr/local/lib/python3.12/site-packages/pip (from <stdin>:1) does not exist
+    ModuleNotFoundError: No module named 'pip'
+    ```
+
+=== "Vérification via le shell"
+
+    ```bash
+    docker run --rm --entrypoint sh vlm-pipeline \
+        -c "which pip && echo 'pip PRÉSENT !' || echo 'pip absent — OK'"
+    ```
+
+    **Résultat attendu :**
+
+    ```
+    pip absent — OK
+    ```
+
+!!! success "Résultat correct"
+    Toute réponse indiquant que `pip` est introuvable confirme que l'image
+    est saine. Si pip apparaissait encore, reconstruire l'image avec
+    `make docker-build` (sans cache si nécessaire : `docker build --no-cache
+    -t vlm-pipeline .`).
+
+---

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Reformate l'attribut `Val` des balises `Copt` dans un XML VLM.
 
@@ -37,11 +36,11 @@ import logging
 import re
 import sys
 import xml.etree.ElementTree as ET
-
-from utils import load_config, setup_logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
+
+from utils import load_config, setup_logging
 
 LOGGER = logging.getLogger("reformat_copt")
 LEINFO_HEAD_RE = re.compile(r"(?:NON-)?LEINFO=\(", re.IGNORECASE)
@@ -73,7 +72,6 @@ class ReformatState:
     """
 
     leinfo_counter: int = 0
-
 
 
 def parse_args() -> argparse.Namespace:
@@ -140,6 +138,7 @@ def normalize_whitespace(val: str) -> str:
 
     Returns:
         Une chaîne avec un seul espace entre les éléments.
+
     """
     return re.sub(r"\s+", " ", val).strip()
 
@@ -154,6 +153,7 @@ def _consume_balanced_parentheses(text: str, open_index: int) -> int:
     Returns:
     L'index juste après la parenthèse fermante correspondante.
     Si la fermeture est introuvable, renvoie `len(text)`.
+
     """
     depth = 0
     idx = open_index
@@ -169,7 +169,9 @@ def _consume_balanced_parentheses(text: str, open_index: int) -> int:
     return len(text)
 
 
-def _extract_leinfo_token_at(text: str, start_index: int) -> tuple[str, int] | None:
+def _extract_leinfo_token_at(
+    text: str, start_index: int
+) -> tuple[str, int] | None:
     """Extrait `LEINFO`/`NON-LEINFO` à partir d'un index donné.
 
     Args:
@@ -179,6 +181,7 @@ def _extract_leinfo_token_at(text: str, start_index: int) -> tuple[str, int] | N
     Returns:
         `(token, end_index)` si un token est détecté.
         `None` sinon.
+
     """
     match = LEINFO_HEAD_RE.match(text, start_index)
     if not match:
@@ -212,6 +215,7 @@ def replace_leinfo_with_placeholder(
 
     Returns:
         Un tuple `(valeur_transformée, nombre_de_remplacements)`.
+
     """
     if mode == "keep":
         return val, 0
@@ -263,6 +267,7 @@ def tokenize_options(val: str) -> list[str]:
 
     Returns:
         La liste des tokens d'options.
+
     """
     tokens: list[str] = []
     current: list[str] = []
@@ -327,6 +332,7 @@ def reformat_copt_value(
 
     Returns:
         `(valeur_reformatée, nombre_de_leinfo_traites)`.
+
     """
     value, replacements = replace_leinfo_with_placeholder(
         val=raw_val,
@@ -392,7 +398,9 @@ def validate_input_file(input_path: Path) -> None:
 
 def validate_output_dir(output_path: Path) -> None:
     """Vérifie que le dossier de sortie existe et est inscriptible."""
-    output_dir = output_path.parent if output_path.parent != Path("") else Path(".")
+    output_dir = (
+        output_path.parent if output_path.parent != Path() else Path()
+    )
     if not output_dir.exists() or not output_dir.is_dir():
         raise NotADirectoryError(
             f"Output directory '{output_dir}' does not exist or is not a directory"
@@ -432,13 +440,19 @@ def main() -> None:
         validate_input_file(input_path)
         validate_output_dir(output_path)
 
-        tree = ET.parse(str(input_path), parser=ET.XMLParser(encoding=args.encoding))
+        tree = ET.parse(
+            str(input_path), parser=ET.XMLParser(encoding=args.encoding)
+        )
 
         ignored_writer: TextIO | None = None
         if args.leinfo_mode == "placeholder":
             ignored_path.parent.mkdir(parents=True, exist_ok=True)
-            file_mode = "a" if args.append_ignored else "w"
-            ignored_writer = ignored_path.open(file_mode, encoding="utf-8")
+            # Les modes littéraux "a"/"w" garantissent à mypy un retour
+            # TextIO (et non IO[Any] comme avec un mode dynamique).
+            if args.append_ignored:
+                ignored_writer = ignored_path.open("a", encoding="utf-8")
+            else:
+                ignored_writer = ignored_path.open("w", encoding="utf-8")
 
         try:
             reformat_tree(

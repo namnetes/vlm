@@ -136,6 +136,27 @@ installing: ppc64le OK
     page qui requiert ce mode — toutes les suivantes sont des `docker
     build`/`docker run` standards.
 
+!!! warning "CVE dans `tonistiigi/binfmt` — risque pratique nul sur Linux"
+    Docker Scout signale **CVE-2026-39824** (CVSS 3.3) dans cette image :
+    la fonction `NewNTUnicodeString` du module Go `golang.org/x/sys`
+    (`< 0.44.0`) ne vérifie pas le dépassement de taille d'une chaîne
+    Unicode NT.
+
+    **Deux raisons pour lesquelles cette CVE ne présente aucun risque ici :**
+
+    - `NTUnicodeString` est une structure de l'API **Windows NT** — ce code
+      n'est jamais exécuté sur Linux. L'image `tonistiigi/binfmt` tourne
+      exclusivement sur Linux.
+    - `tonistiigi/binfmt` est une image **externe**, maintenue par la
+      communauté Docker. Aucune correction n'est possible de votre côté —
+      il faut attendre qu'une nouvelle image soit publiée avec
+      `golang.org/x/sys >= 0.44.0`.
+
+    Vous pouvez surveiller les mises à jour sur
+    [hub.docker.com/r/tonistiigi/binfmt](https://hub.docker.com/r/tonistiigi/binfmt).
+    En attendant, le risque opérationnel est nul : la vulnérabilité vise
+    un code path Windows, jamais atteint dans ce contexte.
+
 ### 3.3 Construire l'image pour macOS Apple Silicon (`linux/arm64`)
 
 ```bash

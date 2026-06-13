@@ -1,4 +1,0 @@
-# Exclure tous les répertoires docs
-**/docs/
-# Exclure les fichiers de config mkdocs
-mkdocs.yml

@@ -22,15 +22,15 @@
 
 ## 1. Contexte et glossaire
 
-| Terme           | Définition                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**         | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport XML nettoyé produit par le pipeline à partir de cette sortie est l'entrée de ce script. |
-| **CSECT**       | _Control Section_ — sous-partie d'un programme COBOL compilé.                                                                          |
-| **Copt**        | Balise XML portant les options de compilation COBOL d'une CSECT. L'attribut `Val` contient la liste brute des options.                  |
-| **LEINFO**      | Pseudo-option de compilation IBM Enterprise COBOL contenant des informations de runtime LE (Language Environment). Peut être volumineuse.|
-| **NON-LEINFO**  | Variante de `LEINFO` pour les CSECTs non-LE.                                                                                            |
-| **Placeholder** | Remplacement compact `LEINFO=(N)` ou `NON-LEINFO=(N)` avec traçabilité dans un fichier annexe.                                         |
-| **Tokenisation**| Découpage de la chaîne d'options en tokens individuels en respectant les parenthèses imbriquées.                                        |
+`reformat_copt.py` est l'étape 2 du pipeline. Elle normalise l'attribut `Val`
+de chaque balise `<Copt>` du XML pour qu'un simple `split()` puisse isoler
+chaque option de compilation. Le cœur du traitement est un tokeniseur
+*paren-depth-aware* : les espaces à l'intérieur de parenthèses
+(`OPTION(A, B)`) ne découpent pas le token.
+
+!!! tip "Vocabulaire"
+    Pour les définitions de CSECT, COPT, LEINFO et Copt@Val, voir
+    le [glossaire métier z/OS](./../glossaire.md).
 
 ---
 
@@ -39,28 +39,27 @@
 Le script parcourt l'arbre XML, puis pour chaque balise `<Copt>` trouvée,
 applique les étapes dans cet ordre strict :
 
-```
-Pour chaque balise <Copt> dans l'arbre XML
-    │
-    ▼
-[1] LEINFO/NON-LEINFO présents ?  ──► selon le mode :
-    │   keep        → conserver tel quel
-    │   remove      → supprimer le token
-    │   placeholder → remplacer par LEINFO=(N) et tracer dans le fichier annexe
-    ▼
-[2] Normaliser les espaces (tabulations, sauts de ligne → espace simple)
-    │
-    ▼
-[3] Tokeniser en respectant la profondeur des parenthèses
-    │
-    ▼
-[4] Normaliser chaque token (supprimer espaces après virgule dans les parenthèses)
-    │
-    ▼
-[5] Reconstruire la chaîne avec un espace simple entre les tokens
-    │
-    ▼
-[6] Mettre à jour Copt@Val si la valeur a changé
+```mermaid
+graph TD
+    XML["Parcourir le XML\n(chaque balise &lt;Copt&gt;)"]
+    LEINFO{"LEINFO /\nNON-LEINFO\nprésent ?"}
+    MODE_K["keep\nConserver tel quel"]
+    MODE_R["remove\nSupprimer le token"]
+    MODE_P["placeholder\nRemplacer par LEINFO=(N)\n+ tracer dans fichier annexe"]
+    NORM["[2] Normaliser les espaces\n(tab, sauts de ligne → espace)"]
+    TOK["[3] Tokeniser\n(paren-depth-aware)"]
+    NTOK["[4] Normaliser chaque token"]
+    REBUILD["[5] Reconstruire Copt@Val"]
+    UPDATE["[6] Mettre à jour\nl'attribut XML si différent"]
+
+    XML --> LEINFO
+    LEINFO -->|keep| MODE_K
+    LEINFO -->|remove| MODE_R
+    LEINFO -->|placeholder| MODE_P
+    MODE_K --> NORM
+    MODE_R --> NORM
+    MODE_P --> NORM
+    NORM --> TOK --> NTOK --> REBUILD --> UPDATE
 ```
 
 ---

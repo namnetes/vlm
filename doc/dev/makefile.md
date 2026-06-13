@@ -73,6 +73,7 @@ courte description et les variables qu'elles acceptent.
 | `log` | Ouvre le journal du pipeline avec `less` | §6.2 |
 | `clean` | Supprime les fichiers générés et les caches | §7 |
 | `docker-build` | Construit l'image Docker `vlm-pipeline` | §8.1 |
+| `docker-build-s390x` | Cross-build de l'image pour `linux/s390x` (IBM Z / zCX) | §8.3 |
 | `docker-run` | Exécute une cible `make` dans le conteneur | §8.2 |
 | `docs` | Lance la documentation MkDocs (premier plan) | §9 |
 | `docs-start` | Lance la documentation MkDocs (arrière-plan) | §9 |
@@ -241,6 +242,32 @@ l'hôte.
     `docs`, `docs-start`, `docs-stop` et `docs-build` nécessitent `uv`,
     `mkdocs` et `lsof`, absents de l'image conteneur — ce sont des outils
     de développement, hors périmètre du conteneur.
+
+### 8.3 `make docker-build-s390x` — cross-build pour IBM Z / zCX
+
+```bash
+make docker-build-s390x
+```
+
+Construit l'image Docker **pour l'architecture `linux/s390x`** (IBM Z),
+quelle que soit l'architecture de votre machine (amd64 ou arm64). L'image
+est chargée dans le cache Docker local sous le tag `vlm-pipeline:s390x`.
+
+Équivaut à :
+
+```bash
+docker buildx build --platform linux/s390x --load -t vlm-pipeline:s390x .
+```
+
+!!! note "Prérequis"
+    - **Linux** : activer l'émulation QEMU au préalable (`docker run --privileged --rm tonistiigi/binfmt --install all`)
+    - **macOS Docker Desktop** : les émulateurs QEMU sont inclus, aucune étape supplémentaire.
+
+    Voir la page [Cross-build](../docker/cross_build.md) pour le pas-à-pas complet.
+
+!!! tip "Tag de l'image produite"
+    L'image est taguée `vlm-pipeline:s390x` (et non `vlm-pipeline:latest`)
+    pour éviter d'écraser l'image native. Vérifier avec `docker images vlm-pipeline`.
 
 ---
 

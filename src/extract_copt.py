@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 # Extrait les options de compilation (COPT) par CSECT depuis le fichier JSON des VLM
 # produit par build_json.py et écrit deux types de sortie :
@@ -42,6 +41,7 @@ import logging
 import sys
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from utils import load_config, setup_logging
 
@@ -111,6 +111,7 @@ def parse_args() -> argparse.Namespace:
     Returns:
         Namespace argparse dont les attributs ``file`` et ``output``
         contiennent les chemins fournis par l'utilisateur.
+
     """
     # ArgumentParser est l'objet central d'argparse ; description apparaît
     # dans le message --help.
@@ -136,7 +137,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_json(path: Path) -> list:
+def load_json(path: Path) -> list[Any]:
     """Ouvre le fichier JSON pointé par *path* et retourne son contenu analysé.
 
     Le fichier VLM JSON est un tableau de loadlibs, chacune contenant une liste
@@ -153,16 +154,13 @@ def load_json(path: Path) -> list:
             - code 2 si le fichier est absent ou si la lecture est refusée par l'OS
             - code 3 si le contenu n'est pas du JSON valide
             - code 10 en cas d'erreur I/O inattendue
+
     """
     try:
         with path.open(encoding="utf-8") as f:
             # json.load() lit le flux et convertit le JSON en objets Python
             # (dict, list, str, int…). Lève JSONDecodeError si le format est invalide.
-            data = json.load(f)
-        LOGGER.debug(
-            "JSON chargé depuis '%s' : %d loadlib(s) présente(s).", path, len(data)
-        )
-        return data
+            data: list[Any] = json.load(f)
     except FileNotFoundError:
         # Le fichier n'existe pas à l'emplacement indiqué.
         LOGGER.error("Fichier '%s' introuvable.", path)
@@ -182,9 +180,16 @@ def load_json(path: Path) -> list:
         # non couverts par FileNotFoundError et PermissionError.
         LOGGER.error("Erreur I/O lors de la lecture de '%s' : %s", path, exc)
         sys.exit(10)
+    else:
+        LOGGER.debug(
+            "JSON chargé depuis '%s' : %d loadlib(s) présente(s).",
+            path,
+            len(data),
+        )
+        return data
 
 
-def iter_csect_copt(data: list) -> Iterator[CsectRow]:
+def iter_csect_copt(data: list[Any]) -> Iterator[CsectRow]:
     """Parcourt le JSON VLM et génère une ligne par CSECT ayant des options COPT.
 
     Le JSON VLM est structuré sur trois niveaux imbriqués :
@@ -212,6 +217,7 @@ def iter_csect_copt(data: list) -> Iterator[CsectRow]:
         - *csect_name* : nom de la section compilée.
         - *compilateur*: chaîne identifiant le compilateur (ex. ``"COBOL"``).
         - *copt*       : liste des options de compilation.
+
     """
     for lib in data:
         # .get("Loadlib") retourne None si la clé est absente ;
@@ -254,6 +260,7 @@ def generate_copt_file(output_file: Path, compiler_options: list[str]) -> None:
     Args:
         output_file: Chemin complet du fichier à créer.
         compiler_options: Liste des options de compilation à écrire.
+
     """
     # parents=True : crée tous les sous-répertoires manquants (équivalent mkdir -p).
     # exist_ok=True : ne lève pas d'erreur si le répertoire existe déjà.
@@ -292,14 +299,15 @@ def write_csv(rows: Iterator[CsectRow], output_path: Path) -> int:
     Raises:
         SystemExit: code 10 si une erreur système survient pendant l'écriture
             (disque plein, droits révoqués en cours d'écriture…).
+
     """
     try:
         count = 0
         # basedir est calculé une seule fois avant la boucle car il ne change
         # pas d'une itération à l'autre.
         basedir = output_path.parent
-        # mode="w" crée le fichier s'il n'existe pas ; newline="" délègue les
-        # fins de ligne au f.write() pour rester cohérent sur Linux/Windows.
+        # mode="w" crée le fichier s'il n'existe pas (ou l'écrase). Les fins de
+        # ligne sont écrites explicitement via f.write(f"...\n").
         with output_path.open(mode="w", encoding="utf-8") as f:
             for prefix, loadlib, load_name, csect_name, compiler, copt in rows:
                 # len(copt) = nombre total d'options de compilation du CSECT.
@@ -334,10 +342,13 @@ def write_csv(rows: Iterator[CsectRow], output_path: Path) -> int:
                 )
                 generate_copt_file(output_file, copt)
                 count += 1
-        return count
     except OSError as exc:
-        LOGGER.error("Erreur I/O lors de l'écriture de '%s' : %s", output_path, exc)
+        LOGGER.error(
+            "Erreur I/O lors de l'écriture de '%s' : %s", output_path, exc
+        )
         sys.exit(10)
+    else:
+        return count
 
 
 def main() -> None:
@@ -355,6 +366,7 @@ def main() -> None:
 
     Raises:
         SystemExit: code 2 pour tout problème lié aux chemins de fichiers.
+
     """
     args = parse_args()
     # setup_logging configure le logger "extract_copt" défini en haut du module.
@@ -367,7 +379,9 @@ def main() -> None:
     input_path = Path(args.file)
     output_path = Path(args.output)
 
-    LOGGER.debug("Arguments reçus : entrée='%s', sortie='%s'.", input_path, output_path)
+    LOGGER.debug(
+        "Arguments reçus : entrée='%s', sortie='%s'.", input_path, output_path
+    )
 
     # Vérification 1 : le fichier source doit exister et être un fichier régulier
     # (pas un répertoire).
@@ -410,7 +424,9 @@ def main() -> None:
     # par une, ce qui limite la consommation mémoire sur de grands fichiers.
     count = write_csv(iter_csect_copt(data), output_path)
     LOGGER.info(
-        "Extraction terminée : %d CSECT(s) écrits dans '%s'.", count, output_path
+        "Extraction terminée : %d CSECT(s) écrits dans '%s'.",
+        count,
+        output_path,
     )
 
 

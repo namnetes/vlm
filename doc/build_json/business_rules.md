@@ -23,48 +23,39 @@
 
 ## 1. Contexte et glossaire
 
-| Terme        | Définition                                                                                                                       |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**      | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport XML reformaté issu du pipeline est l'entrée de ce script. |
-| **Loadlib**  | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                    |
-| **Loadmod**  | Module exécutable contenu dans une loadlib.                                                                                      |
-| **CSECT**    | _Control Section_ — sous-partie d'un programme COBOL compilé.                                                                   |
-| **Copt**     | Options de compilation COBOL associées à une CSECT.                                                                              |
-| **LEINFO**   | Pseudo-option de compilation IBM LE (Language Environment) — métadonnée runtime, filtrée en sortie.                             |
-| **Identify** | Balise optionnelle portant un identifiant structuré de la forme `PREFIX/HASH/DYxxxxxx`.                                          |
-| **DB2**      | Middleware IBM de base de données relationnelle — détecté via les stubs de liaison (`DSNCLI`, `DSNELI`, `DSNULI`).               |
-| **WMQ**      | _WebSphere MQ_ — middleware IBM de messagerie — détecté via les stubs de liaison (`CSQBSTUB`, `CSQCSTUB`, etc.).                 |
-| **CICS**     | _Customer Information Control System_ — middleware transactionnel IBM — détecté via le stub `DFHECI`.                            |
-| **ThreadSafe** | Indicateur de sécurité multi-thread — vrai si la CSECT se nomme `CEEUOPT`.                                                    |
+`build_json.py` est l'étape 3 du pipeline. Elle parse l'arbre XML
+(Loadlib → Loadmod → CSECT) et produit un fichier JSON structuré
+exploitable par `jq` ou `export_csv.sh`.
+
+!!! tip "Vocabulaire"
+    Pour les définitions de Loadlib, Loadmod, CSECT, COPT, LEINFO,
+    Identify, CICS, DB2 et WMQ, voir le [glossaire métier z/OS](./../glossaire.md).
 
 ---
 
 ## 2. Vue d'ensemble du traitement
 
-```
-Lire le fichier XML d'entrée
-    │
-    ▼
-[1] Valider existence du fichier d'entrée et inscriptibilité du répertoire de sortie
-    │
-    ▼
-[2] Vérifier que le XML est bien formé (ET.parse)
-    │
-    ▼
-[3] Pour chaque <vlm> sous la racine :
-    │   ├── Lire loadlib et memberCount
-    │   └── Pour chaque <Loadmod> :
-    │           ├── Lire les attributs du Loadmod
-    │           └── Pour chaque <CSECT> :
-    │                   ├── Lire les attributs de la CSECT
-    │                   ├── Dériver ThreadSafe, CICS, DB2, WMQ
-    │                   ├── Traiter <Identify> (validation + extraction)
-    │                   └── Traiter <Copt> (tokenisation + filtrage LEINFO)
-    ▼
-[4] Sérialiser la liste Python en JSON (indent=2, ensure_ascii=False)
-    │
-    ▼
-Écrire le fichier JSON de sortie
+```mermaid
+graph TD
+    VAL["Valider entrée + répertoire de sortie"]
+    PARSE["[2] Parser le XML\n(ET.parse)"]
+    VLM["[3] Pour chaque &lt;vlm&gt;\nlire loadlib + memberCount"]
+    LM["Pour chaque &lt;Loadmod&gt;\nlire attributs"]
+    CS["Pour chaque &lt;CSECT&gt;\nlire attributs"]
+    FLAGS["Dériver ThreadSafe, CICS,\nDB2, WMQ"]
+    IDENT["Traiter &lt;Identify&gt;\n(validation + extraction)"]
+    COPT["Traiter &lt;Copt&gt;\n(tokenisation + filtrage LEINFO)"]
+    SERIAL["[4] Sérialiser en JSON\n(indent=2, ensure_ascii=False)"]
+    WRITE["Écrire le fichier JSON de sortie"]
+
+    VAL --> PARSE --> VLM --> LM --> CS
+    CS --> FLAGS
+    CS --> IDENT
+    CS --> COPT
+    FLAGS --> SERIAL
+    IDENT --> SERIAL
+    COPT --> SERIAL
+    SERIAL --> WRITE
 ```
 
 ---
@@ -435,25 +426,28 @@ Un simple `split()` sur `Copt@Val` casserait les options contenant des espaces
 internes à des parenthèses, par exemple `CSECT(CODE, MCONFIG)` serait découpé
 en deux tokens invalides `CSECT(CODE,` et `MCONFIG)`.
 
-### 7.2 Suppression de LEINFO
+### 7.2 Suppression de LEINFO / NON-LEINFO
 
-**Règle :** avant toute normalisation, les tokens `LEINFO=(...)` sont supprimés
-de la chaîne. La suppression utilise une regex non-greedy avec `re.DOTALL` pour
-gérer les `LEINFO` multi-lignes.
+**Règle :** avant toute normalisation, les tokens `LEINFO=(...)` **et**
+`NON-LEINFO=(...)` sont supprimés de la chaîne. La suppression utilise une regex
+non-greedy avec `re.DOTALL` pour gérer les `LEINFO` multi-lignes. Le préfixe
+optionnel `(?:NON-)?` garantit que `NON-LEINFO=(N)` est retiré **en entier** :
+sans lui, seul `LEINFO=(N)` serait supprimé et le résidu `NON-` resterait comme
+fausse option.
 
 **Cas particulier :** si `CDbiPathBase()` apparaît à l'intérieur d'un bloc
-`LEINFO=(...)`, il est retiré au préalable pour éviter de perturber la regex
-de suppression.
+`LEINFO=(...)` ou `NON-LEINFO=(...)`, il est retiré au préalable pour éviter de
+perturber la regex de suppression.
 
 ```python
 # src/build_json.py — dans split_copt_options()
 
-# Pré-nettoyage : supprime CDbiPathBase() à l'intérieur d'un LEINFO
-raw = re.sub(r"(\bLEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw)
+# Pré-nettoyage : supprime CDbiPathBase() à l'intérieur d'un (NON-)LEINFO
+raw = re.sub(r"(\b(?:NON-)?LEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw)
 
-# Suppression complète de LEINFO=(...), y compris multi-lignes
+# Suppression complète de LEINFO=(...) et NON-LEINFO=(...), y compris multi-lignes
 raw_without_leinfo: str = re.sub(
-    r"\bLEINFO=\(.*?\)",
+    r"\b(?:NON-)?LEINFO=\(.*?\)",
     "",
     raw,
     flags=re.DOTALL,
@@ -462,9 +456,10 @@ raw_without_leinfo: str = re.sub(
 
 > **Pourquoi supprimer LEINFO ici ?** `build_json.py` reçoit le XML produit par
 > `reformat_copt.py`. Selon le mode utilisé lors du reformattage, LEINFO peut
-> être présent sous forme de placeholder `LEINFO=(N)` ou sous forme originale.
-> Dans les deux cas, cette métadonnée LE n'est pas une option de compilation
-> COBOL et ne doit pas figurer dans le tableau `Copt` du JSON final.
+> être présent sous forme de placeholder `LEINFO=(N)` / `NON-LEINFO=(N)` ou sous
+> forme originale. Dans tous les cas, cette métadonnée LE n'est pas une option
+> de compilation COBOL et ne doit pas figurer dans le tableau `Copt` du JSON
+> final.
 
 ### 7.3 Algorithme de tokenisation
 
@@ -481,12 +476,12 @@ parenthèses :
 ```python
 # src/build_json.py — split_copt_options()
 def split_copt_options(raw: str) -> list[str]:
-    # Pré-nettoyage CDbiPathBase à l'intérieur de LEINFO
-    raw = re.sub(r"(\bLEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw)
+    # Pré-nettoyage CDbiPathBase à l'intérieur de (NON-)LEINFO
+    raw = re.sub(r"(\b(?:NON-)?LEINFO=\([^)]*)CDbiPathBase\(\)", r"\1", raw)
 
-    # Suppression de LEINFO=(...)
+    # Suppression de LEINFO=(...) et NON-LEINFO=(...)
     raw_without_leinfo: str = re.sub(
-        r"\bLEINFO=\(.*?\)",
+        r"\b(?:NON-)?LEINFO=\(.*?\)",
         "",
         raw,
         flags=re.DOTALL,
@@ -641,25 +636,29 @@ Après `split_copt_options()` :
 
 ---
 
-### 9.3 Tokenisation de Copt — filtrage de LEINFO
+### 9.3 Tokenisation de Copt — filtrage de LEINFO / NON-LEINFO
 
 Entrée `Copt@Val` (placeholder produit par `reformat_copt.py`) :
 
 ```
-RENT LEINFO=(1) NOOPT
+RENT LEINFO=(1) NOOPT NON-LEINFO=(2) NOALPHA
 ```
 
-Après suppression de `LEINFO=(...)` :
+Après suppression de `LEINFO=(...)` **et** `NON-LEINFO=(...)` :
 
 ```
-RENT  NOOPT
+RENT  NOOPT  NOALPHA
 ```
 
 Après normalisation des blancs et tokenisation :
 
 ```python
-["RENT", "NOOPT"]
+["RENT", "NOOPT", "NOALPHA"]
 ```
+
+> `NON-LEINFO=(2)` est retiré en entier grâce au préfixe `(?:NON-)?` de la
+> regex. Le mot `NOTLEINFO` (sans tiret) serait au contraire conservé, car la
+> limite de mot `\b` ne s'applique pas à l'intérieur d'un identifiant.
 
 ---
 
@@ -672,7 +671,7 @@ RENT LEINFO=(LE,NOLONGNAME,
 RMODE=ANY,AFP(NOVOLATILE)) NOOPT
 ```
 
-Après `re.sub(r"\bLEINFO=\(.*?\)", "", raw, flags=re.DOTALL)` :
+Après `re.sub(r"\b(?:NON-)?LEINFO=\(.*?\)", "", raw, flags=re.DOTALL)` :
 
 ```
 RENT  NOOPT

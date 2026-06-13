@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Affiche le contenu brut de chaque balise Copt d'un fichier XML VLM.
 
@@ -27,6 +26,7 @@ def parse_args() -> argparse.Namespace:
     Returns:
         Namespace argparse avec les attributs :
         ``file`` (chemin du XML) et ``encoding`` (encodage à utiliser).
+
     """
     parser = argparse.ArgumentParser(
         description="Affiche le contenu de chaque balise Copt d'un XML VLM."
@@ -63,6 +63,7 @@ def main() -> None:
         SystemExit:
             - Code 2 : fichier introuvable.
             - Code 3 : XML syntaxiquement invalide.
+
     """
     args = parse_args()
     input_path = Path(args.file)
@@ -70,14 +71,18 @@ def main() -> None:
     # .is_file() retourne True uniquement pour un fichier régulier.
     # Les répertoires ou chemins inexistants retournent False.
     if not input_path.is_file():
-        print(f"Erreur : le fichier '{input_path}' n'existe pas.", file=sys.stderr)
+        print(
+            f"Erreur : le fichier '{input_path}' n'existe pas.", file=sys.stderr
+        )
         sys.exit(2)
 
     try:
         # ET.parse() charge le XML en mémoire sous forme d'arbre d'objets.
         # ET.XMLParser(encoding=...) force l'encodage indiqué en argument.
         # Lève ET.ParseError si le XML est syntaxiquement invalide.
-        tree = ET.parse(str(input_path), parser=ET.XMLParser(encoding=args.encoding))
+        tree = ET.parse(
+            str(input_path), parser=ET.XMLParser(encoding=args.encoding)
+        )
     except ET.ParseError as exc:
         # exc contient le détail de l'erreur (ligne, colonne, message).
         print(f"Erreur XML : {exc}", file=sys.stderr)

@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Exécute la chaîne de traitement VLM complète ou un sous-ensemble d'étapes.
+"""Exécute la chaîne de traitement VLM complète ou un sous-ensemble d'étapes.
 
 VLM = View Load Module — fonction d'IBM File Manager qui analyse les load
 modules d'une bibliothèque z/OS (loadlib). Le rapport brut produit par
@@ -54,21 +52,20 @@ COPT_CSV = PROJECT_ROOT / _settings["copt_csv"]
 
 # Fichiers intermédiaires — codés en dur, non configurables dans config.toml.
 # Chaque étape produit exactement un fichier passé en entrée à l'étape suivante.
-CLEAN_XML    = PROJECT_ROOT / "datas/clean_vlm.xml"       # Sortie de l'étape 1
-COPT_XML     = PROJECT_ROOT / "datas/clean_vlm_copt.xml"  # Sortie de l'étape 2
-COPT_IGNORED = PROJECT_ROOT / "datas/copt_ignored.txt"    # Trace LEINFO (étape 2)
+CLEAN_XML = PROJECT_ROOT / "datas/clean_vlm.xml"  # Sortie de l'étape 1
+COPT_XML = PROJECT_ROOT / "datas/clean_vlm_copt.xml"  # Sortie de l'étape 2
+COPT_IGNORED = PROJECT_ROOT / "datas/copt_ignored.txt"  # Trace LEINFO (étape 2)
 
 STEP_COUNT = 4
 
-# Alias nommés → numéro d'étape.
 # Alias nommés → numéro d'étape.
 # dict[str, int] = dictionnaire dont les clés sont des chaînes (noms)
 # et les valeurs des entiers (numéros d'étape).
 # Permet d'écrire "pipeline.py extract" au lieu de "pipeline.py 4".
 STEP_ALIASES: dict[str, int] = {
-    "clean":   1,
-    "copt":    2,
-    "json":    3,
+    "clean": 1,
+    "copt": 2,
+    "json": 3,
     "extract": 4,
 }
 
@@ -90,6 +87,7 @@ def parse_steps(value: str) -> list[int]:
 
     Raises:
         argparse.ArgumentTypeError: Si le format est invalide ou hors plage.
+
     """
 
     def resolve(token: str) -> int:
@@ -100,12 +98,13 @@ def parse_steps(value: str) -> list[int]:
             return int(token)
         except ValueError:
             known = ", ".join(
-                f"{v}={k}" for k, v in sorted(STEP_ALIASES.items(), key=lambda x: x[1])
+                f"{v}={k}"
+                for k, v in sorted(STEP_ALIASES.items(), key=lambda x: x[1])
             )
             raise argparse.ArgumentTypeError(
                 f"Étape inconnue : '{token}'. "
                 f"Valeurs acceptées : numéro 1-{STEP_COUNT} ou alias ({known})."
-            )
+            ) from None
 
     if "-" in value:
         # Sépare sur le premier tiret qui n'est pas dans un alias nommé.
@@ -175,8 +174,11 @@ def run_step(cmd: list[str], step_num: int, label: str) -> None:
 
     Raises:
         SystemExit: Si le code de retour est non nul.
+
     """
-    ret = subprocess.run(cmd)
+    # check=False : on gère nous-mêmes le code de retour ci-dessous pour
+    # afficher un message d'étape clair avant de propager le code de sortie.
+    ret = subprocess.run(cmd, check=False)
     if ret.returncode != 0:
         LOGGER.error(
             "Échec de l'étape %d (%s) — code de retour %d.",
@@ -232,7 +234,11 @@ def main() -> None:
         idx = steps.index(2) + 1
         print(f"[{idx}/{total}] Reformatage des balises Copt...")
         LOGGER.info(
-            "[%d/%d] Reformatage : '%s' → '%s'.", idx, total, CLEAN_XML, COPT_XML
+            "[%d/%d] Reformatage : '%s' → '%s'.",
+            idx,
+            total,
+            CLEAN_XML,
+            COPT_XML,
         )
         run_step(
             [
@@ -256,7 +262,11 @@ def main() -> None:
         idx = steps.index(3) + 1
         print(f"[{idx}/{total}] Conversion XML → JSON...")
         LOGGER.info(
-            "[%d/%d] Conversion : '%s' → '%s'.", idx, total, COPT_XML, FINAL_JSON
+            "[%d/%d] Conversion : '%s' → '%s'.",
+            idx,
+            total,
+            COPT_XML,
+            FINAL_JSON,
         )
         run_step(
             [
@@ -278,7 +288,11 @@ def main() -> None:
         idx = steps.index(4) + 1
         print(f"[{idx}/{total}] Extraction des options COPT par CSECT...")
         LOGGER.info(
-            "[%d/%d] Extraction : '%s' → '%s'.", idx, total, FINAL_JSON, COPT_CSV
+            "[%d/%d] Extraction : '%s' → '%s'.",
+            idx,
+            total,
+            FINAL_JSON,
+            COPT_CSV,
         )
         # extract_copt.py refuse d'écraser un fichier existant.
         if COPT_CSV.exists():

@@ -1,36 +1,38 @@
-line-length = 88
+line-length = 80
 target-version = "py312"
 
 [lint]
 select = [
-    "E",     # pycodestyle errors
-    "W",     # pycodestyle warnings
-    "F",     # pyflakes
-    "I",     # isort
-    "N",     # pep8-naming
-    "UP",    # pyupgrade
-    "B",     # flake8-bugbear
-    "C90",   # mccabe complexity
-    "SIM",   # flake8-simplify
-    "RUF",   # ruff-specific rules
-    "PTH",   # flake8-use-pathlib
-    "PERF",  # perflint
-    "TRY",   # tryceratops
-    "LOG",   # flake8-logging
-    "G",     # flake8-logging-format
-    "ERA",   # eradicate (commented-out code)
-    "FBT",   # flake8-boolean-trap
-    "PL",    # pylint
-    "D",     # pydocstyle
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C90",  # mccabe complexity
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific rules
+    "PTH",  # flake8-use-pathlib
+    "PERF", # perflint
+    "TRY",  # tryceratops
+    "LOG",  # flake8-logging
+    "G",    # flake8-logging-format
+    "ERA",  # eradicate (commented-out code)
+    "FBT",  # flake8-boolean-trap
+    "PL",   # pylint
+    "D",    # pydocstyle
 ]
 ignore = [
-    "E501",    # line too long — handled by formatter
-    "B008",    # function call in default arg
-    "D100",    # missing docstring in public module
-    "D104",    # missing docstring in public package
-    "D203",    # 1 blank line before class docstring — conflicts with D211
-    "D213",    # summary line on second line — conflicts with D212
-    "TRY003",  # long messages outside exception class — too restrictive
+    "E501",   # line too long — handled by formatter
+    "B008",   # function call in default arg
+    "D100",   # missing docstring in public module
+    "D104",   # missing docstring in public package
+    "D203",   # 1 blank line before class docstring — conflicts with D211
+    "D213",   # summary line on second line — conflicts with D212
+    "TRY003", # long messages outside exception class — too restrictive
+    "TRY400", # logging.error volontaire : erreurs attendues converties en
+              # codes de sortie, sans traceback (pas de logging.exception)
 ]
 fixable = ["ALL"]
 
@@ -42,6 +44,8 @@ max-args = 8
 
 [lint.per-file-ignores]
 "tests/*" = ["D101", "D102", "D103", "PLR2004"]
+# Les numéros d'étape 1-4 sont des valeurs métier auto-documentées.
+"src/pipeline.py" = ["PLR2004"]
 
 [format]
 quote-style = "double"

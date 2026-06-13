@@ -1,8 +1,8 @@
 # Guide jq
 
-> `jq` est l'outil en ligne de commande utilisé par `export_csv.sh` pour
-> interroger le fichier JSON VLM. Ce guide explique ses concepts depuis zéro,
-> en utilisant les données VLM comme support d'exemples.
+`jq` est l'outil en ligne de commande utilisé par `export_csv.sh` pour
+interroger le fichier JSON VLM. Ce guide explique ses concepts depuis zéro,
+en utilisant les données VLM comme support d'exemples.
 
 ---
 

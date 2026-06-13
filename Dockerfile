@@ -8,7 +8,16 @@ FROM python:3.12-alpine
 # bash  : SHELL du Makefile et shebang de script/export_csv.sh
 # jq    : requis par script/export_csv.sh (cible `make query`)
 # less  : requis par `make log`
-RUN apk add --no-cache make bash jq less
+# pip désinstallé : src/ ne dépend que de la stdlib, pip n'est jamais
+# utilisé à l'exécution. Sa présence expose inutilement l'image aux CVE
+# suivantes (toutes corrigées uniquement dans pip ≥ 26.1.2) :
+#   CVE-2026-8643 (CVSS 5.5) — entry points installés hors du répertoire cible
+#   CVE-2026-6357 (CVSS 5.3) — import de modules post-installation (CWE-829)
+#   CVE-2026-3219 (CVSS 4.6) — archives tar+ZIP traitées comme ZIP (CWE-434)
+#   CVE-2026-1703 (CVSS 2.0) — path traversal à l'extraction d'un wheel (CWE-22)
+#   CVE-2025-8869 (CVSS 5.9) — liens symboliques hors répertoire cible (CWE-59)
+RUN apk add --no-cache make bash jq less \
+    && pip uninstall -y pip
 
 WORKDIR /app
 

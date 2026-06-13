@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Nettoie un rapport VLM File Manager et produit un XML bien formé.
 
@@ -27,8 +26,8 @@ import argparse
 import logging
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from utils import load_config, setup_logging
 
@@ -51,7 +50,9 @@ _RE_DSN: re.Pattern[str] = re.compile(r"DSNIN=([\w\.]+)")
 _RE_COUNT: re.Pattern[str] = re.compile(r"FMNBB437\s+(\d+)\s+member\(s\) read")
 
 # Détecte une bibliothèque vide (aucun membre à lire).
-_RE_EMPTY: re.Pattern[str] = re.compile(r"FMNBE329\s+The PDS contains no members")
+_RE_EMPTY: re.Pattern[str] = re.compile(
+    r"FMNBE329\s+The PDS contains no members"
+)
 
 # Détecte l'erreur métier FMNBF427 et capture son message (groupe 1).
 _RE_ERROR: re.Pattern[str] = re.compile(r"FMNBF427\s+(.*)")
@@ -61,9 +62,9 @@ _RE_ERROR: re.Pattern[str] = re.compile(r"FMNBF427\s+(.*)")
 # Ces lignes sont des métadonnées File Manager sans intérêt pour le XML final.
 _NOISE_PREFIXES: frozenset[str] = frozenset(
     {
-        "IBM File",   # En-tête du rapport File Manager
-        "FMNBA001",   # Message de démarrage
-        "FMNBA010",   # Message de fin
+        "IBM File",  # En-tête du rapport File Manager
+        "FMNBA001",  # Message de démarrage
+        "FMNBA010",  # Message de fin
         "DEFAULT SET",
         "PRINTOUT=",
         "PRINTLEN=",
@@ -73,7 +74,7 @@ _NOISE_PREFIXES: frozenset[str] = frozenset(
         "TEMP UNIT=",
         "PERM UNIT=",
         "TRACECLS=",
-        "$$FILEM",    # Sauf "$$FILEM VLM" qui contient le nom de la loadlib
+        "$$FILEM",  # Sauf "$$FILEM VLM" qui contient le nom de la loadlib
     }
 )
 
@@ -101,6 +102,7 @@ def strip_asa_char(line: str) -> str:
 
     Returns:
         Ligne sans le premier caractère, avec espaces de début/fin supprimés.
+
     """
     return line[1:].strip()
 
@@ -117,6 +119,7 @@ def is_noise_line(line: str) -> bool:
 
     Returns:
         ``True`` si la ligne doit être ignorée.
+
     """
     if not line:
         return True
@@ -137,6 +140,7 @@ def read_member_count(f_in: Iterator[str]) -> int:
 
     Returns:
         Nombre de membres lus, ou ``0`` si non trouvé.
+
     """
     next_line = next(f_in, None)
     if next_line is None:
@@ -158,6 +162,7 @@ def validate_input_file(path: Path) -> None:
 
     Raises:
         FileNotFoundError: Si le fichier est absent.
+
     """
     if not path.is_file():
         raise FileNotFoundError(f"Fichier d'entrée introuvable : '{path}'")
@@ -172,10 +177,13 @@ def validate_output_dir(path: Path) -> None:
     Raises:
         NotADirectoryError: Si le répertoire parent n'existe pas.
         PermissionError: Si le répertoire n'est pas accessible en écriture.
+
     """
-    output_dir = path.parent if path.parent != Path("") else Path(".")
+    output_dir = path.parent if path.parent != Path() else Path()
     if not output_dir.is_dir():
-        raise NotADirectoryError(f"Répertoire de sortie introuvable : '{output_dir}'")
+        raise NotADirectoryError(
+            f"Répertoire de sortie introuvable : '{output_dir}'"
+        )
     test_file = output_dir / ".__vlm_write_test__"
     try:
         test_file.touch()
@@ -192,7 +200,7 @@ def validate_output_dir(path: Path) -> None:
 
 
 def convert_report(input_path: Path, output_path: Path, encoding: str) -> None:
-    """Transforme le rapport VLM brut en XML propre.
+    """Convertit le rapport VLM brut en XML propre.
 
     Lit le rapport ligne par ligne, élimine le bruit, injecte les attributs
     ``loadlib`` et ``memberCount`` dans les balises ``<vlm>``, et écrit
@@ -205,6 +213,7 @@ def convert_report(input_path: Path, output_path: Path, encoding: str) -> None:
 
     Raises:
         SystemExit: Code 1 si l'erreur métier FMNBF427 est détectée.
+
     """
     LOGGER.info("Début du traitement : %s → %s", input_path, output_path)
     current_loadlib = ""
@@ -232,11 +241,15 @@ def convert_report(input_path: Path, output_path: Path, encoding: str) -> None:
 
             error_match = _RE_ERROR.search(line_str)
             if error_match:
-                LOGGER.error("Erreur métier FMNBF427 : %s", error_match.group(1))
+                LOGGER.error(
+                    "Erreur métier FMNBF427 : %s", error_match.group(1)
+                )
                 sys.exit(1)
 
             if _RE_EMPTY.search(line_str):
-                LOGGER.debug("Bibliothèque vide : %s (memberCount=0)", current_loadlib)
+                LOGGER.debug(
+                    "Bibliothèque vide : %s (memberCount=0)", current_loadlib
+                )
                 f_out.write(f'<vlm loadlib="{current_loadlib}">\n')
                 f_out.write('  <memberCount value="0"/>\n')
                 f_out.write("</vlm>\n")
@@ -265,6 +278,7 @@ def parse_args() -> argparse.Namespace:
 
     Returns:
         Namespace contenant ``file``, ``output`` et ``encoding``.
+
     """
     parser = argparse.ArgumentParser(
         description="Nettoie un rapport VLM File Manager et produit un XML bien formé."
@@ -298,6 +312,7 @@ def main() -> None:
             - Code 1  : erreur métier FMNBF427 dans le rapport (détectée dans convert_report).
             - Code 2  : répertoire de sortie invalide ou non accessible en écriture.
             - Code 10 : fichier introuvable ou erreur I/O inattendue.
+
     """
     args = parse_args()
 
@@ -317,7 +332,7 @@ def main() -> None:
     except (NotADirectoryError, PermissionError) as exc:
         LOGGER.error("%s", exc)
         sys.exit(2)
-    except IOError as exc:
+    except OSError as exc:
         LOGGER.error("Erreur E/S : %s", exc)
         sys.exit(10)
 

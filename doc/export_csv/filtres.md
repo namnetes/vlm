@@ -1,9 +1,9 @@
 # Décryptage des filtres — export_csv.sh
 
-> Cette page applique les concepts présentés dans le [Guide jq](jq.md) aux
-> trois filtres jq réels utilisés par `export_csv.sh` (modes `-g`, `-p`,
-> `-c`). Si une notation vous semble obscure (`.[]`, `as $var`, `//`,
-> `select`...), reportez-vous d'abord au [Guide jq](jq.md).
+Cette page applique les concepts présentés dans le [Guide jq](jq.md) aux
+trois filtres jq réels utilisés par `export_csv.sh` (modes `-g`, `-p`,
+`-c`). Si une notation vous semble obscure (`.[]`, `as $var`, `//`,
+`select`…), reportez-vous d'abord au [Guide jq](jq.md).
 
 ---
 

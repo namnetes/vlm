@@ -1,7 +1,9 @@
 # Guide — `export_csv.sh`
 
-> **Rôle :** lire le fichier JSON produit par `build_json.py` et extraire
-> des données vers un fichier CSV (délimiteur `;`).
+`export_csv.sh` lit le fichier JSON produit par `build_json.py` et extrait
+des données vers un fichier CSV (délimiteur `;`).
+
+See also : [Guide jq](jq.md) — [Décryptage des filtres](filtres.md)
 
 ---
 

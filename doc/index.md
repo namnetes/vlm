@@ -1,43 +1,46 @@
 # VLM Pipeline — Documentation
 
-> **VLM = View Load Module** — fonction d'IBM File Manager qui analyse
-> les load modules d'une bibliothèque z/OS. Le rapport produit (vlm.xml)
-> est la matière première de ce pipeline.
+**VLM** (*View Load Module*) est une fonction d'IBM File Manager qui analyse
+les load modules d'une loadlib z/OS. Le rapport produit (`vlm.xml`) est la
+matière première de ce pipeline.
 
 ---
 
 ## Vue d'ensemble
 
-Le pipeline transforme un rapport File Manager VLM en données structurées
-interrogeables via CSV.
+Le pipeline transforme un rapport IBM File Manager VLM en données structurées
+interrogeables via CSV, en quatre étapes enchaînées :
 
+```mermaid
+graph LR
+    A["📄 vlm.xml<br/>(ISO-8859-1)"]
+    B["clean_report.py<br/>Étape 1"]
+    C["reformat_copt.py<br/>Étape 2"]
+    D["build_json.py<br/>Étape 3"]
+    E["extract_copt.py<br/>Étape 4"]
+    F["📊 vlm.json"]
+    G["📋 CSV + TXT"]
+
+    A --> B --> C --> D --> E
+    D --> F
+    E --> G
 ```
-vlm.xml  (ISO-8859-1)
-   │
-   ▼
-clean_report.py   →  clean_vlm.xml       Nettoyage, suppression du bruit
-   │
-   ▼
-reformat_copt.py  →  clean_vlm_copt.xml  Reformatage des options COPT
-   │
-   ▼
-build_json.py     →  vlm.json            Conversion XML → JSON structuré
-   │
-   ▼
-extract_copt.py   →  CSV + TXT           Extraction des options par CSECT
-```
 
-## Documents disponibles
+!!! note "Orchestration"
+    `pipeline.py` exécute les quatre étapes en séquence via `subprocess`.
+    Tout code de sortie non nul arrête immédiatement le pipeline.
 
-| Script                                              | Rôle                                              |
-| --------------------------------------------------- | ------------------------------------------------- |
-| [pipeline.py](pipeline/business_rules.md)           | Orchestrateur — exécute les 4 étapes en séquence  |
-| [clean_report.py](clean_report/business_rules.md)   | Étape 1 — nettoyage du rapport VLM brut           |
-| [reformat_copt.py](reformat_copt/business_rules.md) | Étape 2 — reformatage des balises COPT            |
-| [build_json.py](build_json/business_rules.md)       | Étape 3 — conversion XML → JSON                   |
-| [extract_copt.py](extract_copt/business_rules.md)   | Étape 4 — extraction COPT par CSECT → CSV         |
-| [inspect_copt.py](inspect_copt/business_rules.md)   | Utilitaire — inspection des balises COPT d'un XML |
-| [export_csv.sh](export_csv/guide.md)                | Script Bash — export du JSON vers CSV (3 modes)   |
+## Scripts du pipeline
+
+| Étape | Script | Rôle |
+| ----- | ------ | ---- |
+| —  | [`pipeline.py`](pipeline/business_rules.md) | Orchestrateur — exécute les 4 étapes en séquence. |
+| 1  | [`clean_report.py`](clean_report/business_rules.md) | Nettoyage du rapport VLM brut (suppression ASA, injection d'attributs XML). |
+| 2  | [`reformat_copt.py`](reformat_copt/business_rules.md) | Normalisation des balises COPT (tokeniseur *paren-depth-aware*). |
+| 3  | [`build_json.py`](build_json/business_rules.md) | Conversion XML → JSON structuré (Loadlib → Loadmod → CSECT). |
+| 4  | [`extract_copt.py`](extract_copt/business_rules.md) | Extraction des options COPT par CSECT vers CSV et fichiers `.txt`. |
+| —  | [`inspect_copt.py`](inspect_copt/business_rules.md) | Utilitaire de diagnostic — affiche les balises `<Copt>` d'un fichier XML. |
+| —  | [`export_csv.sh`](export_csv/guide.md) | Script Bash alternatif — interroge `vlm.json` via `jq` (3 modes d'export). |
 
 ## Arborescence du projet
 
@@ -88,7 +91,7 @@ détail de chaque script, voir le tableau ci-dessus.
 |---|---|
 | `doc/`, `mkdocs.yml` | Sources et configuration de cette documentation |
 | `README.md` | Aperçu rapide du projet |
-| `CLAUDE.md` | Instructions pour Claude Code (architecture, conventions) |
+| `AGENTS.md` | Contexte projet partagé entre tous les assistants IA |
 | `CHANGELOG.md` | Historique des versions (Keep a Changelog) |
 | `.vscode/` | Configuration de l'éditeur (tâches, débogage) |
 

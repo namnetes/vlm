@@ -5,7 +5,7 @@
 Le **lint** est une analyse automatique du code source qui détecte, sans
 l'exécuter, les erreurs de style et certaines erreurs de logique courantes
 (variable inutilisée, import manquant, etc.).
-La configuration est dans `ruff.toml` (longueur de ligne 88, cible py312).
+La configuration est dans `ruff.toml` (longueur de ligne 80, cible py312).
 
 ```bash
 # Vérifier sans corriger

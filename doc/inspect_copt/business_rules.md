@@ -34,11 +34,15 @@ sur la sortie standard la valeur de l'attribut `Val` de chaque balise
 
 ```bash
 # Inspecter le XML brut (avant reformatage)
-uv run src/inspect_copt.py -f datas/clean_vlm.xml
+uv run src/inspect_copt.py -f datas/clean_vlm.xml  # (1)!
 
 # Inspecter le XML normalisé (après reformatage)
-uv run src/inspect_copt.py -f datas/clean_vlm_copt.xml
+uv run src/inspect_copt.py -f datas/clean_vlm_copt.xml  # (2)!
 ```
+
+1. Affiche toutes les balises `<Copt>` du fichier brut — utile pour vérifier
+   ce qu'IBM File Manager a produit.
+2. Affiche les mêmes balises après normalisation — permet de comparer avec (1).
 
 ---
 

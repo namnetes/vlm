@@ -22,17 +22,13 @@
 
 ## 1. Contexte et glossaire
 
-| Terme            | Définition                                                                                                                                                                                                                             |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**          | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport produit par cette fonction (vlm.xml) est l'entrée de ce script.                                 |
-| **Loadlib**      | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables).                                                                                                                                                          |
-| **Loadmod**      | Module exécutable contenu dans une loadlib.                                                                                                                                                                                            |
-| **CSECT**        | _Control Section_ — sous-partie d'un programme (équivalent d'un module ou d'une fonction).                                                                                                                                             |
-| **DSN**          | _Dataset Name_ — nom de fichier z/OS à structure simple ou complexe.                                                                                                                                                                   |
-| **ASA**          | Caractère de contrôle imprimante, placé en **première colonne** de chaque ligne. Les valeurs possibles sont : ` ` (normal), `0` (saut de ligne), `1` (saut de page), `-` (retour arrière). Ce caractère n'a aucun intérêt dans un XML. |
-| **PDS**          | _Partitioned Data Set_ — fichier partitionné mainframe (comparable à un répertoire).                                                                                                                                                   |
-| **File Manager** | Utilitaire IBM qui génère le rapport VLM en entrée.                                                                                                                                                                                    |
-| **FMNBXXX**      | Codes de message émis par File Manager (ex. `FMNBF427` = erreur critique).                                                                                                                                                             |
+`clean_report.py` est l'étape 1 du pipeline. Elle transforme un rapport brut
+IBM File Manager (mélange de texte et de fragments XML, encodage ISO-8859-1)
+en un fichier XML propre, bien formé et en UTF-8.
+
+!!! tip "Vocabulaire"
+    Pour les définitions de VLM, Loadlib, CSECT, ASA et les codes FMNB, voir
+    le [glossaire métier z/OS](./../glossaire.md).
 
 ---
 
@@ -41,33 +37,37 @@
 Le script lit le rapport **ligne par ligne** et applique les règles dans cet
 ordre strict pour chaque ligne :
 
-```
-Lire une ligne
-    │
-    ▼
-[1] Supprimer le caractère ASA (1er caractère)
-    │
-    ▼
-[2] La ligne est-elle du "bruit" technique ?  ──► OUI → Ignorer, passer à la ligne suivante
-    │ NON
-    ▼
-[3] Contient-elle DSNIN= ?  ──► OUI → Mémoriser le nom de la loadlib, ignorer la ligne
-    │ NON
-    ▼
-[4] Contient-elle FMNBF427 ?  ──► OUI → Arrêt immédiat (erreur critique, code 1)
-    │ NON
-    ▼
-[5] Contient-elle FMNBE329 ?  ──► OUI → Écrire un bloc <vlm> vide (memberCount=0)
-    │ NON
-    ▼
-[6] Commence-t-elle par <vlm> ?  ──► OUI → Réécrire avec l'attribut loadlib
-    │ NON
-    ▼
-[7] Commence-t-elle par </vlm> ?  ──► OUI → Lire la ligne suivante pour extraire
-    │                                         memberCount, injecter <memberCount/> avant </vlm>
-    │ NON
-    ▼
-[8] Écrire la ligne telle quelle dans le fichier de sortie
+```mermaid
+graph TD
+    L["Lire une ligne"]
+    ASA["[1] Supprimer le caractère ASA"]
+    BRUIT{"[2] Bruit\ntechnique ?"}
+    DSN{"[3] DSNIN= ?"}
+    ERR427{"[4] FMNBF427 ?"}
+    ERR329{"[5] FMNBE329 ?"}
+    VLM{"[6] Début\n&lt;vlm&gt; ?"}
+    ENDVLM{"[7] Fin\n&lt;/vlm&gt; ?"}
+    WRITE["[8] Écrire la ligne telle quelle"]
+    IGN["Ignorer"]
+    MLOADLIB["Mémoriser loadlib"]
+    STOP["Arrêt code 1"]
+    EMPTY["Bloc &lt;vlm&gt; vide (memberCount=0)"]
+    INJECT["Réécrire &lt;vlm&gt; avec attribut loadlib"]
+    COUNT["Injecter &lt;memberCount/&gt; avant &lt;/vlm&gt;"]
+
+    L --> ASA --> BRUIT
+    BRUIT -->|OUI| IGN
+    BRUIT -->|NON| DSN
+    DSN -->|OUI| MLOADLIB
+    DSN -->|NON| ERR427
+    ERR427 -->|OUI| STOP
+    ERR427 -->|NON| ERR329
+    ERR329 -->|OUI| EMPTY
+    ERR329 -->|NON| VLM
+    VLM -->|OUI| INJECT
+    VLM -->|NON| ENDVLM
+    ENDVLM -->|OUI| COUNT
+    ENDVLM -->|NON| WRITE
 ```
 
 ---
@@ -80,25 +80,13 @@ Lire une ligne
 | `-o` / `--output`   | non         | `clean_vlm.xml`   | Chemin du fichier XML de sortie        |
 | `-e` / `--encoding` | non         | `iso8859-1`       | Encodage du fichier source (mainframe) |
 
-> Sur les systèmes IBM Mainframe, deux environnements cohabitent avec des standards EBCDIC distincts :
->
-> - Environnement MVS (Historique) : Utilise principalement la page de code EBCDIC IBM-1147. Ce
->   standard est la version "France" incluant le support du symbole Euro (€).
-> - Environnement USS (Unix System Services) : Utilise généralement la page de code EBCDIC IBM-1047.
->   Bien qu'il s'agisse du standard "Latin 1" pour les systèmes ouverts chez IBM, il peut présenter
->   des divergences avec l'IBM-1147 concernant certains caractères spéciaux et accentués propres au
->   français.
->
-> Afin de garantir la compatibilité des rapports VLM avec les systèmes x86 (Windows, Linux, macOS), un
-> transcodage est effectué lors de la génération du fichier :
->
-> - Cible de conversion : Le flux de données est converti en ISO 8859-1 (également appelé Latin-1).
-> - Objectif : Ce standard historique est nativement supporté par les architectures de l'Europe de
->   l'Ouest, permettant une lecture sans altération des caractères lors du transfert des fichiers du
->   Mainframe vers des postes de travail ou des serveurs distribués.
->
-> Bien que l'ISO 8859-1 soit le standard historique de l'Europe de l'Ouest, il est recommandé, pour les
-> évolutions futures, d'envisager un passage vers l'UTF-8.
+!!! note "Encodage z/OS → ISO-8859-1"
+    Les rapports mainframe utilisent EBCDIC (IBM-1147 en environnement MVS,
+    IBM-1047 en USS). Pour garantir la compatibilité avec les systèmes x86
+    (Windows, Linux, macOS), le rapport est transcodé en **ISO-8859-1** (Latin-1)
+    lors de sa génération. Python lit donc ce fichier avec `encoding="iso8859-1"`.
+
+    Pour les évolutions futures, un passage vers UTF-8 à la source est recommandé.
 
 ---
 
@@ -144,9 +132,10 @@ Lire une ligne
 **Règle :** le premier caractère de chaque ligne est systématiquement supprimé,
 puis les espaces en début et fin de ligne sont retirés.
 
-> **Pourquoi ?** Les rapports mainframe réservent la colonne 1 à un code
-> imprimante hérité de l'époque des imprimantes à aiguilles. Ce caractère est
-> toujours présent mais sans valeur pour notre traitement.
+!!! note "Colonne 1 réservée"
+    Les rapports mainframe réservent la colonne 1 à un code imprimante hérité
+    des imprimantes à aiguilles. Ce caractère est toujours présent mais sans
+    valeur pour notre traitement.
 
 ```python
 # src/clean_report.py — strip_asa_char()

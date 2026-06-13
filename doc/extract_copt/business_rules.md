@@ -21,46 +21,46 @@
 
 ## 1. Contexte et glossaire
 
-| Terme        | Définition                                                                                                                       |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**      | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le fichier JSON produit par le pipeline à partir de cette sortie est l'entrée de ce script. |
-| **Loadlib**  | PDS (_Partitioned Dataset_) contenant des Load Modules (modules exécutables). Ex. : `SYS1.LINKLIB`.                             |
-| **Loadmod**  | Module exécutable contenu dans une loadlib.                                                                                      |
-| **CSECT**    | _Control Section_ — sous-partie d'un programme COBOL compilé. Un loadmod peut contenir plusieurs CSECTs.                        |
-| **COPT**     | _Compilation OPTions_ — liste des options passées au compilateur IBM COBOL 6.5 lors de la compilation d'un CSECT.               |
-| **Préfixe**  | Indicateur `"1"` ou `"0"` placé en première colonne du CSV : `"1"` si le CSECT est le module principal (même nom), `"0"` sinon. |
-| **CSV**      | Fichier texte à colonnes séparées par `;` — format exploitable par un tableur ou un script.                                     |
-| **CSECT principal** | CSECT dont le nom est identique à celui du loadmod qui le contient. En IBM COBOL, c'est le programme lui-même.         |
-| **CSECT secondaire** | CSECT dont le nom diffère du loadmod : stubs DB2 (`DSNCLI`, `DSNELI`), stub CICS (`DFHECI`), sous-programmes liés, etc. |
+`extract_copt.py` est l'étape 4 (finale) du pipeline. Elle lit le fichier
+JSON produit par `build_json.py` et en extrait les options de compilation
+(COPT) de chaque CSECT vers un CSV récapitulatif et des fichiers texte
+détaillés par CSECT.
+
+!!! warning "Refus d'écrasement"
+    Ce script **refuse d'écraser** un fichier CSV de sortie existant.
+    `pipeline.py` le supprime explicitement avant de lancer cette étape.
+
+!!! tip "Vocabulaire"
+    Pour les définitions de Loadlib, Loadmod, CSECT et COPT, voir
+    le [glossaire métier z/OS](./../glossaire.md).
 
 ---
 
 ## 2. Vue d'ensemble du traitement
 
-```
-Lire les arguments (-f fichier_json, -o fichier_csv)
-    │
-    ▼
-[1] Valider le fichier d'entrée (doit exister)
-    │
-    ▼
-[2] Valider le fichier de sortie (ne doit PAS déjà exister)
-    │
-    ▼
-[3] Valider le répertoire de sortie (doit exister et être inscriptible)
-    │
-    ▼
-[4] Charger le JSON en mémoire
-    │
-    ▼
-[5] Pour chaque Loadlib → Loadmod → CSECT :
-    │   La CSECT a-t-elle des options COPT ?  ──► NON → Ignorer (passer à la suivante)
-    │   OUI
-    │   ├── Calculer le préfixe ("1" si CSECT principal, "0" sinon)
-    │   ├── Écrire une ligne dans le CSV récapitulatif
-    │   └── Créer le fichier texte détaillé pour ce CSECT
-    ▼
-[6] Afficher le bilan (nombre de CSECTs traités)
+```mermaid
+graph TD
+    ARGS["Lire les arguments\n(-f json, -o csv)"]
+    V1["[1] Valider fichier d'entrée\n(doit exister)"]
+    V2["[2] Valider fichier de sortie\n(ne doit PAS exister)"]
+    V3["[3] Valider répertoire de sortie\n(doit exister + inscriptible)"]
+    LOAD["[4] Charger le JSON\nen mémoire"]
+    LOOP["[5] Pour chaque\nLoadlib → Loadmod → CSECT"]
+    HAS_COPT{"COPT\nprésent ?"}
+    SKIP["Ignorer"]
+    PREFIX["Calculer le préfixe\n(1 = principal, 0 = secondaire)"]
+    CSV["Écrire ligne CSV"]
+    TXT["Créer fichier .txt\npar CSECT"]
+    BILAN["[6] Afficher le bilan"]
+
+    ARGS --> V1 --> V2 --> V3 --> LOAD --> LOOP
+    LOOP --> HAS_COPT
+    HAS_COPT -->|NON| SKIP
+    HAS_COPT -->|OUI| PREFIX
+    PREFIX --> CSV
+    PREFIX --> TXT
+    CSV --> BILAN
+    TXT --> BILAN
 ```
 
 ---

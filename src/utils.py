@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """Utilitaires partagés : configuration et logging du pipeline VLM.
 
@@ -28,13 +27,14 @@ import sys
 import tomllib
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 # Racine du projet : deux niveaux au-dessus de src/utils.py
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_CONFIG = _PROJECT_ROOT / "config.toml"
 
 
-def load_config(config_path: Path = _DEFAULT_CONFIG) -> dict:
+def load_config(config_path: Path = _DEFAULT_CONFIG) -> dict[str, Any]:
     """Charge et valide le fichier de configuration TOML.
 
     Args:
@@ -46,6 +46,7 @@ def load_config(config_path: Path = _DEFAULT_CONFIG) -> dict:
 
     Raises:
         SystemExit: Code 2 si le fichier est absent, code 3 si illisible.
+
     """
     if not config_path.is_file():
         print(
@@ -65,7 +66,7 @@ def load_config(config_path: Path = _DEFAULT_CONFIG) -> dict:
         sys.exit(3)
 
 
-def setup_logging(config: dict, logger_name: str) -> logging.Logger:
+def setup_logging(config: dict[str, Any], logger_name: str) -> logging.Logger:
     """Initialise un logger nommé avec rotation fichier et sortie console.
 
     Deux handlers sont attachés au logger :
@@ -88,8 +89,9 @@ def setup_logging(config: dict, logger_name: str) -> logging.Logger:
 
     Returns:
         Logger prêt à l'emploi.
+
     """
-    log_cfg: dict = config.get("logging", {})
+    log_cfg: dict[str, Any] = config.get("logging", {})
 
     level_str: str = log_cfg.get("level", "INFO").upper()
     # getattr(objet, "nom", défaut) récupère un attribut par son nom en chaîne.

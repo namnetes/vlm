@@ -21,15 +21,13 @@
 
 ## 1. Contexte et glossaire
 
-| Terme              | Définition                                                                                                                                                                                           |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **VLM**            | _View Load Module_ — fonction d'IBM File Manager permettant d'analyser le contenu des load modules d'une bibliothèque z/OS. Le rapport produit (vlm.xml) est la matière première de toute la chaîne. |
-| **Pipeline**       | Enchaînement ordonné d'étapes de traitement, chaque étape consommant la sortie de la précédente.                                                                                                     |
-| **Orchestrateur**  | Script dont le seul rôle est de lancer d'autres scripts dans le bon ordre et de vérifier leur succès.                                                                                                |
-| **subprocess**     | Module Python standard permettant de lancer un programme externe (ici un autre script Python) depuis un script Python.                                                                               |
-| **code de retour** | Entier renvoyé par un programme à son processus parent à la fin de son exécution : `0` = succès, tout autre valeur = erreur.                                                                         |
-| **config.toml**    | Fichier de configuration TOML à la racine du projet. Contient les chemins des fichiers d'entrée/sortie utilisateur.                                                                                  |
-| **LEINFO**         | Pseudo-option de compilation IBM LE — mode `placeholder` utilisé par défaut dans le pipeline.                                                                                                        |
+`pipeline.py` est le **point d'entrée unique** du traitement VLM. Il orchestre
+quatre scripts Python en séquence, en lisant les chemins configurables depuis
+`config.toml`.
+
+!!! tip "Vocabulaire"
+    Pour les définitions de VLM, Loadlib, CSECT, COPT et LEINFO, voir le
+    [glossaire métier z/OS](./../glossaire.md).
 
 ---
 
@@ -37,36 +35,25 @@
 
 Le pipeline exécute quatre étapes dans un ordre fixe et strict :
 
-```
-Lire config.toml (chemins configurables)
-    │
-    ▼
-[1] clean_report.py
-    Entrée  : fichier VLM brut ISO-8859-1 (vlm_input)
-    Sortie  : clean_vlm.xml (UTF-8, XML bien formé)
-    Échec ? ──► Arrêt immédiat, propagation du code d'erreur
-    │
-    ▼
-[2] reformat_copt.py
-    Entrée  : clean_vlm.xml
-    Sortie  : clean_vlm_copt.xml + copt_ignored.txt
-    Échec ? ──► Arrêt immédiat, propagation du code d'erreur
-    │
-    ▼
-[3] build_json.py
-    Entrée  : clean_vlm_copt.xml
-    Sortie  : vlm.json (final_json)
-    Échec ? ──► Arrêt immédiat, propagation du code d'erreur
-    │
-    ▼
-[4] extract_copt.py
-    Pré-requis : supprimer copt.csv s'il existe déjà
-    Entrée  : vlm.json
-    Sortie  : copt.csv + fichiers .txt par CSECT
-    Échec ? ──► Arrêt immédiat, propagation du code d'erreur
-    │
-    ▼
-Afficher le bilan (chemins des fichiers produits)
+```mermaid
+graph TD
+    CFG["config.toml\n(chemins configurables)"]
+    S1["[1] clean_report.py\nvlm_input → clean_vlm.xml"]
+    S2["[2] reformat_copt.py\nclean_vlm.xml → clean_vlm_copt.xml"]
+    S3["[3] build_json.py\nclean_vlm_copt.xml → vlm.json"]
+    S4["[4] extract_copt.py\nvlm.json → copt.csv + .txt"]
+    END(["Bilan affiché"])
+    ERR(["sys.exit(code)"])
+
+    CFG --> S1
+    S1 -->|succès| S2
+    S1 -->|échec| ERR
+    S2 -->|succès| S3
+    S2 -->|échec| ERR
+    S3 -->|succès| S4
+    S3 -->|échec| ERR
+    S4 -->|succès| END
+    S4 -->|échec| ERR
 ```
 
 ---
@@ -100,10 +87,10 @@ FINAL_JSON = PROJECT_ROOT / _settings["final_json"]
 COPT_CSV   = PROJECT_ROOT / _settings["copt_csv"]
 ```
 
-> **Pourquoi utiliser `config.toml` ?** Les chemins des fichiers d'entrée/sortie
-> utilisateur sont susceptibles de changer d'un environnement à l'autre. Les
-> centraliser dans un seul fichier de configuration évite de modifier le code
-> source pour chaque nouvel environnement.
+!!! tip "Pourquoi `config.toml` ?"
+    Les chemins des fichiers d'entrée/sortie sont susceptibles de changer d'un
+    environnement à l'autre. Les centraliser dans un seul fichier évite de
+    modifier le code source pour chaque nouvel environnement.
 
 ---
 
@@ -150,10 +137,10 @@ COPT_IGNORED = PROJECT_ROOT / "datas/copt_ignored.txt"
 retour est différent de `0`, le pipeline s'arrête immédiatement et retourne
 ce même code d'erreur à son processus parent.
 
-> **Pourquoi s'arrêter à la première erreur ?** Les étapes sont dépendantes :
-> `reformat_copt.py` ne peut pas fonctionner si `clean_report.py` n'a pas
-> produit un XML valide. Continuer malgré une erreur ne ferait que produire
-> des fichiers corrompus ou vides aux étapes suivantes.
+!!! warning "Arrêt à la première erreur"
+    Les étapes sont dépendantes : `reformat_copt.py` ne peut pas fonctionner
+    si `clean_report.py` n'a pas produit un XML valide. Continuer malgré une
+    erreur produirait des fichiers corrompus aux étapes suivantes.
 
 ```python
 # src/pipeline.py — run_step() factorise le pattern pour chaque étape
@@ -177,11 +164,11 @@ def run_step(cmd: list[str], step_num: int, label: str) -> None:
 **Règle :** chaque sous-script est lancé avec `sys.executable` (l'interpréteur
 Python actuel) plutôt qu'avec la commande `python` ou `python3`.
 
-> **Pourquoi `sys.executable` ?** Sur un système avec plusieurs environnements
-> Python (virtualenvs, `uv`, conda…), `python` peut pointer vers un
-> interpréteur différent de celui qui exécute `pipeline.py`. `sys.executable`
-> garantit que le même interpréteur — et donc les mêmes bibliothèques installées
-> — est utilisé pour toutes les étapes.
+!!! note "Pourquoi `sys.executable` ?"
+    Sur un système avec plusieurs environnements Python (`uv`, virtualenvs,
+    conda…), `python` peut pointer vers un interpréteur différent. `sys.executable`
+    garantit que le même interpréteur — et donc les mêmes bibliothèques — est
+    utilisé pour toutes les étapes.
 
 ```python
 # src/pipeline.py
@@ -194,11 +181,10 @@ subprocess.run([sys.executable, str(SRC_DIR / "clean_report.py"), ...])
 **Règle :** avant de lancer `extract_copt.py`, le pipeline supprime le fichier
 `copt_csv` s'il existe déjà.
 
-> **Pourquoi ?** `extract_copt.py` refuse d'écraser un fichier de sortie
-> existant (protection anti-perte de données, voir son propre `business_rules.md`).
-> Le pipeline contourne cette protection de façon intentionnelle et contrôlée :
-> lors d'une ré-exécution du pipeline complet, le fichier CSV de la dernière
-> exécution est de toute façon périmé.
+!!! note "Protection anti-écrasement"
+    `extract_copt.py` refuse d'écraser un fichier de sortie existant.
+    Le pipeline contourne cette protection de façon intentionnelle et contrôlée :
+    lors d'une ré-exécution, le CSV de la dernière exécution est périmé.
 
 ```python
 # src/pipeline.py — pré-traitement de l'étape 4
@@ -218,8 +204,9 @@ Le tableau ci-dessous récapitule les arguments transmis à chaque étape :
 | 3     | `build_json.py`    | `-f clean_vlm_copt.xml -o final_json -e utf-8`                                    |
 | 4     | `extract_copt.py`  | `-f final_json -o copt_csv`                                                       |
 
-> **Note :** `reformat_copt.py` est appelé sans `--leinfo-mode` ; le mode par
-> défaut `placeholder` s'applique (voir `reformat_copt/business_rules.md` §6.3).
+!!! note
+    `reformat_copt.py` est appelé sans `--leinfo-mode` ; le mode par défaut
+    `placeholder` s'applique (voir [reformat\_copt.py](../reformat_copt/business_rules.md) §6.3).
 
 ### 5.5 Exécution partielle (sous-ensemble d'étapes)
 
@@ -288,10 +275,10 @@ disponibilité des répertoires de sortie. Cette responsabilité est déléguée
 chaque sous-script, qui effectue ses propres vérifications et retourne un code
 d'erreur explicite.
 
-> **Pourquoi déléguer ?** Chaque script est conçu pour fonctionner de façon
-> autonome (en dehors du pipeline). Centraliser les validations dans le pipeline
-> serait redondant et créerait un risque de désynchronisation si les règles de
-> validation d'un script évoluent.
+!!! note "Délégation des validations"
+    Chaque script fonctionne de façon autonome, en dehors du pipeline.
+    Centraliser les validations dans le pipeline serait redondant et risquerait
+    de se désynchroniser si les règles d'un script évoluent.
 
 ### 6.2 Codes de sortie propagés
 

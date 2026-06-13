@@ -41,6 +41,7 @@ markdown_extensions:
   - attr_list
   - def_list
   - footnotes
+  - md_in_html
   - toc:
       permalink: true
       title: Sur cette page
@@ -61,6 +62,9 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.details
   - pymdownx.snippets
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
   - search
@@ -80,6 +84,7 @@ extra:
 
 nav:
   - Accueil: index.md
+  - Glossaire: glossaire.md
   - VLM:
       - pipeline.py: pipeline/business_rules.md
       - clean_report.py: clean_report/business_rules.md
@@ -92,6 +97,7 @@ nav:
           - Guide jq: export_csv/jq.md
           - Décryptage des filtres: export_csv/filtres.md
   - Développement:
+      - Vue d'ensemble: dev/index.md
       - Installation: dev/installation.md
       - Makefile: dev/makefile.md
       - Tests: dev/tests.md
